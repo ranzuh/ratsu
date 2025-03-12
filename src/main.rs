@@ -10,6 +10,7 @@ const BLACK: u8 = 0b10000;
 
 struct Position {
     board: [u8; 128],
+    is_white_turn: bool,
 }
 
 fn get_piece_color(piece: u8) -> u8 {
@@ -34,6 +35,12 @@ fn is_off_board(index: usize) -> bool {
 }
 
 fn print_position(position: Position) {
+    let side_to_move = match position.is_white_turn {
+        true => "White",
+        false => "Black",
+    };
+    print!("{} to move", side_to_move);
+
     let mut rank = 8;
     for i in 0..128 {
         if is_off_board(i) {
@@ -69,9 +76,15 @@ fn piece_from_char(char: char) -> u8 {
 fn get_position_from_fen(fen_string: &str) -> Position {
     let mut pos = Position {
         board: [EMPTY; 128],
+        is_white_turn: false,
     };
+    let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
     // currently using only the piece placement, later use side, castling, ep, etc.
-    let piece_placement = fen_string.split(" ").collect::<Vec<&str>>()[0];
+    let piece_placement = fen_parts[0];
+    let side_to_move = fen_parts[1];
+
+    pos.is_white_turn = side_to_move == "w";
+
     let mut i: usize = 0;
     for c in piece_placement.chars() {
         if c.is_numeric() {
