@@ -20,34 +20,6 @@ fn get_piece_type(piece: u8) -> u8 {
     piece & 0b00111
 }
 
-fn initialize_position(position: &mut Position) {
-    position.board[0] = BLACK | ROOK;
-    position.board[1] = BLACK | KNIGHT;
-    position.board[2] = BLACK | BISHOP;
-    position.board[3] = BLACK | QUEEN;
-    position.board[4] = BLACK | KING;
-    position.board[5] = BLACK | BISHOP;
-    position.board[6] = BLACK | KNIGHT;
-    position.board[7] = BLACK | ROOK;
-
-    for i in 16..24 {
-        position.board[i] = BLACK | PAWN;
-    }
-
-    for i in 96..104 {
-        position.board[i] = WHITE | PAWN;
-    }
-
-    position.board[112] = WHITE | ROOK;
-    position.board[113] = WHITE | KNIGHT;
-    position.board[114] = WHITE | BISHOP;
-    position.board[115] = WHITE | QUEEN;
-    position.board[116] = WHITE | KING;
-    position.board[117] = WHITE | BISHOP;
-    position.board[118] = WHITE | KNIGHT;
-    position.board[119] = WHITE | ROOK;
-}
-
 const PIECES_STRING: &str = ".pnbrqkPNBRQK";
 
 fn get_piece_char(piece: u8) -> char {
@@ -76,14 +48,50 @@ fn print_position(position: Position) {
     println!("\n  a b c d e f g h");
 }
 
+fn piece_from_char(char: char) -> u8 {
+    let is_white = char.is_ascii_uppercase();
+    let piece = match char.to_ascii_lowercase() {
+        'p' => PAWN,
+        'n' => KNIGHT,
+        'b' => BISHOP,
+        'r' => ROOK,
+        'q' => QUEEN,
+        'k' => KING,
+        _ => EMPTY,
+    };
+    if is_white {
+        piece | WHITE
+    } else {
+        piece | BLACK
+    }
+}
+
+fn get_position_from_fen(fen_string: &str) -> Position {
+    let mut pos = Position {
+        board: [EMPTY; 128],
+    };
+    // currently using only the piece placement, later use side, castling, ep, etc.
+    let piece_placement = fen_string.split(" ").collect::<Vec<&str>>()[0];
+    let mut i: usize = 0;
+    for c in piece_placement.chars() {
+        if c.is_numeric() {
+            let n_empty_squares = c.to_digit(10).unwrap() as usize;
+            i += n_empty_squares - 1;
+        }
+        if c == '/' {
+            i += 7;
+        }
+        let piece = piece_from_char(c);
+        pos.board[i] = piece;
+        i += 1;
+    }
+    pos
+}
+
+const START_POSITION_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 fn main() {
-    let mut pos = Position { board: [EMPTY; 128] };
-    initialize_position(&mut pos);
-    // println!("{}", pos.board[0]);
-    // assert!(get_piece_color(pos.board[0]) == BLACK);
-    // assert!(get_piece_type(pos.board[0]) == ROOK);
-    // let piece = pos.board[112];
-    // println!("{}", get_piece_char(piece));
+    // let random_fen = "8/1b1r2kp/1q2p1p1/pp2P1P1/3P1R2/3BK2Q/PP5P/5R2 b - - 0 30";
+    let pos = get_position_from_fen(START_POSITION_FEN);
     print_position(pos);
 }

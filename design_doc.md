@@ -20,3 +20,21 @@ black pieces:
 10101    queen
 10110    king
 
+
+reading FEN string
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+
+split on " "
+
+first part
+
+"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+
+read char by char
+if char / move i+8
+
+if char numeric move i+value
+
+if char letter add piece with that letter
+
+needed: char to piece map
