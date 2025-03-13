@@ -90,14 +90,16 @@ fn get_position_from_fen(fen_string: &str) -> Position {
     for c in piece_placement.chars() {
         if c.is_numeric() {
             let n_empty_squares = c.to_digit(10).unwrap() as usize;
-            i += n_empty_squares - 1;
+            i += n_empty_squares;
         }
-        if c == '/' {
-            i += 7;
+        else if c == '/' {
+            i += 8;
         }
-        let piece = piece_from_char(c);
-        pos.board[i] = piece;
-        i += 1;
+        else {
+            let piece = piece_from_char(c);
+            pos.board[i] = piece;
+            i += 1;
+        }
     }
     pos
 }
@@ -176,6 +178,85 @@ fn generate_crawling_moves(square: usize, position: &Position, moves: &mut Vec<M
     }
 }
 
+// get file 0..7
+fn get_file(square: usize) -> usize {
+    square & 7
+}
+
+// get rank 0..7
+fn get_rank(square: usize) -> usize {
+    square >> 4
+}
+
+fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>) {
+    let is_white = position.is_white_turn;
+    let piece = position.board[square];
+
+    // Direction constants based on color
+    let (forward, rank_for_double_move, promotion_rank) =
+        if is_white { (N, 6, 0) } else { (S, 1, 7) };
+
+    let opponent_color = if is_white { BLACK } else { WHITE };
+
+    // Forward move
+    let target_square = ((square as i16) + forward) as usize;
+    if !is_off_board(target_square) {
+        let target_piece = position.board[target_square];
+
+        if get_piece_type(target_piece) == EMPTY {
+            // Handle promotion
+            if get_rank(target_square) == promotion_rank {
+                // TODO: handle promotion
+            } else {
+                // Normal forward move
+                moves.push(Move {
+                    from: square,
+                    to: target_square,
+                });
+
+                // Double forward move from starting position
+                if get_rank(square) == rank_for_double_move {
+                    let double_target = ((target_square as i16) + forward) as usize;
+                    if get_piece_type(position.board[double_target]) == EMPTY {
+                        moves.push(Move {
+                            from: square,
+                            to: double_target,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Diagonal captures
+    for diagonal in [forward + E, forward + W] {
+        let target_square = ((square as i16) + diagonal) as usize;
+        if is_off_board(target_square) {
+            continue;
+        }
+
+        let target_piece = position.board[target_square];
+
+        // Skip if same color piece
+        if get_piece_color(piece) == get_piece_color(target_piece) {
+            continue;
+        }
+
+        // Capture opponent's piece
+        if get_piece_color(target_piece) == opponent_color {
+            // Handle promotion
+            if get_rank(target_square) == promotion_rank {
+                // TODO: handle promotion
+            } else {
+                moves.push(Move {
+                    from: square,
+                    to: target_square,
+                });
+            }
+        }
+    }
+}
+
 fn generate_moves(position: &Position) -> Vec<Move> {
     let mut moves: Vec<Move> = Vec::new();
 
@@ -191,8 +272,8 @@ fn generate_moves(position: &Position) -> Vec<Move> {
         match get_piece_type(piece) {
             BISHOP | ROOK | QUEEN => generate_sliding_moves(square, &position, &mut moves),
             KNIGHT | KING => generate_crawling_moves(square, &position, &mut moves),
-            // PAWN => generate_pawn_moves(square, &position, &mut moves),
-            _ => println!("Unexpected piece"),
+            PAWN => generate_pawn_moves(square, &position, &mut moves),
+            _ => continue,
         }
     }
 
@@ -216,10 +297,21 @@ fn main() {
     // print_position(&pos);
     // let piece = BLACK | QUEEN;
     // println!("{:?}", get_piece_move_patterns(piece));
-    let fen_string = "8/8/8/8/3N4/8/8/8 w - - 0 1";
-    let pos = get_position_from_fen(fen_string);
+    // let fen_string = "8/4p3/3p1N2/2N5/8/7p/6p1/8 b - - 0 1";
+    let pos = get_position_from_fen(START_POSITION_FEN);
     print_position(&pos);
     let moves = generate_moves(&pos);
     println!("{:?}", moves);
-    debug_generate_moves(&pos, &moves);
+    //debug_generate_moves(&pos, &moves);
+    println!("{:?}", moves.len());
 }
+
+
+// 0, 1, 2, 3, 4, 5, 6, 7,                   8, 9, 10, 11, 12, 13, 14, 15, 
+// 16, 17, 18, 19, 20, 21, 22, 23,           24, 25, 26, 27, 28, 29, 30, 31, 
+// 32, 33, 34, 35, 36, 37, 38, 39,           40, 41, 42, 43, 44, 45, 46, 47, 
+// 48, 49, 50, 51, 52, 53, 54, 55,           56, 57, 58, 59, 60, 61, 62, 63, 
+// 64, 65, 66, 67, 68, 69, 70, 71,           72, 73, 74, 75, 76, 77, 78, 79, 
+// 80, 81, 82, 83, 84, 85, 86, 87,           88, 89, 90, 91, 92, 93, 94, 95, 
+// 96, 97, 98, 99, 100, 101, 102, 103,       104, 105, 106, 107, 108, 109, 110, 111, 
+// 112, 113, 114, 115, 116, 117, 118, 119,   120, 121, 122, 123, 124, 125, 126, 127,
