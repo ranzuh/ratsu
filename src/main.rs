@@ -8,6 +8,7 @@ const KING: u8 = 0b00110;
 const WHITE: u8 = 0b01000;
 const BLACK: u8 = 0b10000;
 
+#[derive(Clone, Copy)]
 struct Position {
     board: [u8; 128],
     is_white_turn: bool,
@@ -34,7 +35,7 @@ fn is_off_board(index: usize) -> bool {
     index & 0x88 != 0
 }
 
-fn print_position(position: Position) {
+fn print_position(position: &Position) {
     let side_to_move = match position.is_white_turn {
         true => "White",
         false => "Black",
@@ -101,10 +102,124 @@ fn get_position_from_fen(fen_string: &str) -> Position {
     pos
 }
 
+const N: i16 = -16;
+const S: i16 = 16;
+const E: i16 = 1;
+const W: i16 = -1;
+
+fn get_piece_move_patterns(piece: u8) -> &'static [i16] {
+    match get_piece_type(piece) {
+        PAWN => &[N, N + N, N + W, N + E],
+        KNIGHT => &[
+            N + N + E,
+            E + E + N,
+            E + E + S,
+            S + S + E,
+            S + S + W,
+            W + W + S,
+            W + W + N,
+            N + N + W,
+        ],
+        BISHOP => &[N + E, E + S, S + W, W + N],
+        ROOK => &[N, E, S, W],
+        QUEEN | KING => &[N, N + E, E, E + S, S, S + W, W, W + N],
+        _ => &[],
+    }
+}
+
+#[derive(Debug)]
+struct Move {
+    from: usize,
+    to: usize,
+}
+
+fn is_square_off_board(square: usize) -> bool {
+    square & 0x88 != 0
+}
+
+fn generate_sliding_moves(square: usize, position: &Position, moves: &mut Vec<Move>) {
+    let piece = position.board[square];
+    for pattern in get_piece_move_patterns(piece) {
+        let mut target_square = square;
+        loop {
+            target_square = ((target_square as i16) + pattern) as usize;
+            if is_off_board(target_square) {
+                break;
+            }
+            let target_piece = position.board[target_square];
+            if get_piece_color(piece) == get_piece_color(target_piece) {
+                break;
+            }
+            moves.push(Move {
+                from: square,
+                to: target_square,
+            });
+        }
+    }
+}
+
+fn generate_crawling_moves(square: usize, position: &Position, moves: &mut Vec<Move>) {
+    let piece = position.board[square];
+    for pattern in get_piece_move_patterns(piece) {
+        let target_square = ((square as i16) + pattern) as usize;
+        if is_off_board(target_square) {
+            continue;
+        }
+        let target_piece = position.board[target_square];
+        if get_piece_color(piece) == get_piece_color(target_piece) {
+            continue;
+        }
+        moves.push(Move {
+            from: square,
+            to: target_square,
+        });
+    }
+}
+
+fn generate_moves(position: &Position) -> Vec<Move> {
+    let mut moves: Vec<Move> = Vec::new();
+
+    for square in 0..128 {
+        if is_square_off_board(square) {
+            continue;
+        }
+        let piece = position.board[square];
+        let side_to_move = if position.is_white_turn { WHITE } else { BLACK };
+        if get_piece_color(piece) != side_to_move {
+            continue;
+        }
+        match get_piece_type(piece) {
+            BISHOP | ROOK | QUEEN => generate_sliding_moves(square, &position, &mut moves),
+            KNIGHT | KING => generate_crawling_moves(square, &position, &mut moves),
+            // PAWN => generate_pawn_moves(square, &position, &mut moves),
+            _ => println!("Unexpected piece"),
+        }
+    }
+
+    moves
+}
+
+fn debug_generate_moves(position: &Position, moves: &Vec<Move>) {
+    let mut pos_copy = *position;
+    for _move in moves {
+        let piece = position.board[_move.from];
+        pos_copy.board[_move.to] = piece;
+    }
+    print_position(&pos_copy);
+}
+
 const START_POSITION_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 fn main() {
     // let random_fen = "8/1b1r2kp/1q2p1p1/pp2P1P1/3P1R2/3BK2Q/PP5P/5R2 b - - 0 30";
-    let pos = get_position_from_fen(START_POSITION_FEN);
-    print_position(pos);
+    // let pos = get_position_from_fen(START_POSITION_FEN);
+    // print_position(&pos);
+    // let piece = BLACK | QUEEN;
+    // println!("{:?}", get_piece_move_patterns(piece));
+    let fen_string = "8/8/8/8/3N4/8/8/8 w - - 0 1";
+    let pos = get_position_from_fen(fen_string);
+    print_position(&pos);
+    let moves = generate_moves(&pos);
+    println!("{:?}", moves);
+    debug_generate_moves(&pos, &moves);
 }

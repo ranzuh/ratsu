@@ -38,3 +38,18 @@ if char numeric move i+value
 if char letter add piece with that letter
 
 needed: char to piece map
+
+
+Move generation
+
+side to move
+
+following pieces move symmetrically with both sides:
+sliding pieces: bishop, rook, queen
+knight, king
+
+pawns move different direction, need to take into account
+
+need to handle castling - different for both sides
+
+same for en passant
