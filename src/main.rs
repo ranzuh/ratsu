@@ -9,10 +9,11 @@ use position::Position;
 const START_POSITION_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 fn main() {
+    let custom_fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -";
     let mut pos = Position::from_fen(START_POSITION_FEN);
     pos.print();
 
-    println!("{}", perft(2, &mut pos));
+    println!("{}", perft(3, &mut pos));
 }
 
 // 0, 1, 2, 3, 4, 5, 6, 7,                   8, 9, 10, 11, 12, 13, 14, 15,

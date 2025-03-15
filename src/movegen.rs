@@ -47,6 +47,23 @@ fn get_rank(square: usize) -> usize {
     square >> 4
 }
 
+fn get_square_string(square: usize) -> String {
+    if is_off_board(square) {
+        panic!("Square {} is off board!", square);
+    }
+    let ranks = "87654321";
+    let files = "abcdefgh";
+    let rank = get_rank(square);
+    let file = get_file(square);
+    let rank_char = ranks.chars().nth(rank).unwrap();
+    let file_char = files.chars().nth(file).unwrap();
+    format!("{}{}", file_char, rank_char)
+}
+
+pub fn print_move(move_: &Move) {
+    println!("{}{}", get_square_string(move_.from), get_square_string(move_.to));
+}
+
 fn generate_sliding_moves(square: usize, position: &Position, moves: &mut Vec<Move>) {
     let piece = position.board[square];
     for pattern in get_piece_move_patterns(piece) {
@@ -60,10 +77,19 @@ fn generate_sliding_moves(square: usize, position: &Position, moves: &mut Vec<Mo
             if get_piece_color(piece) == get_piece_color(target_piece) {
                 break;
             }
-            moves.push(Move {
-                from: square,
-                to: target_square,
-            });
+            else if target_piece != EMPTY {
+                moves.push(Move {
+                    from: square,
+                    to: target_square,
+                });
+                break;
+            }
+            else {
+                moves.push(Move {
+                    from: square,
+                    to: target_square,
+                });
+            }
         }
     }
 }
