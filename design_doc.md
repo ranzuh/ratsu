@@ -56,7 +56,6 @@ same for en passant
 
 
 Castling
-- need is_square_attacked function
 
 1. check castling rights
 2. check whether squares between king and rook are empty
@@ -71,8 +70,7 @@ Castling rights
 3. if a rook get captured -> cancel castling rights for that side
 
 
-
-
+TODO: En passant 
 
 
 

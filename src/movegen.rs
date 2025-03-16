@@ -1,12 +1,12 @@
 use crate::piece::*;
 use crate::position::Position;
 
-const N: i16 = -16;
-const S: i16 = 16;
-const E: i16 = 1;
-const W: i16 = -1;
+const N: isize = -16;
+const S: isize = 16;
+const E: isize = 1;
+const W: isize = -1;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Move {
     pub from: usize,
     pub to: usize,
@@ -17,10 +17,10 @@ pub struct Move {
     pub is_castling: bool,
 }
 
-fn get_piece_move_patterns(piece: u8) -> &'static [i16] {
+fn get_piece_move_patterns(piece: u8) -> Vec<isize> {
     match get_piece_type(piece) {
-        PAWN => &[N, N + N, N + W, N + E],
-        KNIGHT => &[
+        PAWN => [N, N + N, N + W, N + E].to_vec(),
+        KNIGHT => [
             N + N + E,
             E + E + N,
             E + E + S,
@@ -29,11 +29,12 @@ fn get_piece_move_patterns(piece: u8) -> &'static [i16] {
             W + W + S,
             W + W + N,
             N + N + W,
-        ],
-        BISHOP => &[N + E, E + S, S + W, W + N],
-        ROOK => &[N, E, S, W],
-        QUEEN | KING => &[N, N + E, E, E + S, S, S + W, W, W + N],
-        _ => &[],
+        ]
+        .to_vec(),
+        BISHOP => [N + E, E + S, S + W, W + N].to_vec(),
+        ROOK => [N, E, S, W].to_vec(),
+        QUEEN | KING => [N, N + E, E, E + S, S, S + W, W, W + N].to_vec(),
+        _ => [].to_vec(),
     }
 }
 
@@ -73,12 +74,111 @@ pub fn print_move(move_: &Move) {
     );
 }
 
+pub fn is_square_attacked(square: usize, position: &Position) -> bool {
+    // pawn attacks
+    if position.is_white_turn {
+        let patterns = [-15, -17];
+        for pattern in patterns {
+            let attack = square.wrapping_add_signed(pattern);
+            if is_off_board(attack) {
+                continue;
+            }
+            if position.board[attack] == BLACK | PAWN {
+                return true;
+            }
+        }
+    } else {
+        let patterns = [15, 17];
+        for pattern in patterns {
+            let attack = square.wrapping_add_signed(pattern);
+            if is_off_board(attack) {
+                continue;
+            }
+            if position.board[attack] == WHITE | PAWN {
+                return true;
+            }
+        }
+    }
+    // knight attacks
+    let patterns = get_piece_move_patterns(KNIGHT);
+    for pattern in patterns {
+        let attack = square.wrapping_add_signed(pattern);
+        if is_off_board(attack) {
+            continue;
+        }
+        if position.is_white_turn && position.board[attack] == BLACK | KNIGHT {
+            return true;
+        } else if !position.is_white_turn && position.board[attack] == WHITE | KNIGHT {
+            return true;
+        }
+    }
+    // king attacks
+    let patterns = get_piece_move_patterns(KING);
+    for pattern in patterns {
+        let attack = square.wrapping_add_signed(pattern);
+        if is_off_board(attack) {
+            continue;
+        }
+        if position.is_white_turn && position.board[attack] == BLACK | KING {
+            return true;
+        } else if !position.is_white_turn && position.board[attack] == WHITE | KING {
+            return true;
+        }
+    }
+    // bishop and queen attacks
+    let patterns = get_piece_move_patterns(BISHOP);
+    for pattern in patterns {
+        let mut attack = square.wrapping_add_signed(pattern);
+        while !is_off_board(attack) {
+            if position.is_white_turn
+                && (position.board[attack] == BLACK | BISHOP
+                    || position.board[attack] == BLACK | QUEEN)
+            {
+                return true;
+            } else if !position.is_white_turn
+                && (position.board[attack] == WHITE | BISHOP
+                    || position.board[attack] == WHITE | QUEEN)
+            {
+                return true;
+            }
+            if position.board[attack] != EMPTY {
+                break;
+            }
+            attack = attack.wrapping_add_signed(pattern);
+        }
+    }
+    // rook and queen attacks
+    let patterns = get_piece_move_patterns(ROOK);
+    for pattern in patterns {
+        let mut attack = square.wrapping_add_signed(pattern);
+        while !is_off_board(attack) {
+            if position.is_white_turn
+                && (position.board[attack] == BLACK | ROOK
+                    || position.board[attack] == BLACK | QUEEN)
+            {
+                return true;
+            } else if !position.is_white_turn
+                && (position.board[attack] == WHITE | ROOK
+                    || position.board[attack] == WHITE | QUEEN)
+            {
+                return true;
+            }
+            if position.board[attack] != EMPTY {
+                break;
+            }
+            attack = attack.wrapping_add_signed(pattern);
+        }
+    }
+
+    false
+}
+
 fn generate_sliding_moves(square: usize, position: &Position, moves: &mut Vec<Move>) {
     let piece = position.board[square];
     for pattern in get_piece_move_patterns(piece) {
         let mut target_square = square;
         loop {
-            target_square = ((target_square as i16) + pattern) as usize;
+            target_square = target_square.wrapping_add_signed(pattern);
             if is_off_board(target_square) {
                 break;
             }
@@ -117,7 +217,11 @@ fn generate_crawling_moves(square: usize, position: &Position, moves: &mut Vec<M
     if get_piece_type(piece) == KING {
         if position.is_white_turn {
             if position.castling_rights[0] {
-                if position.board[square + 1] == EMPTY && position.board[square + 2] == EMPTY {
+                if position.board[square + 1] == EMPTY
+                    && position.board[square + 2] == EMPTY
+                    && !is_square_attacked(square, position)
+                    && !is_square_attacked(square + 1, position)
+                {
                     moves.push(Move {
                         from: square,
                         to: square + 2,
@@ -133,6 +237,8 @@ fn generate_crawling_moves(square: usize, position: &Position, moves: &mut Vec<M
                 if position.board[square - 1] == EMPTY
                     && position.board[square - 2] == EMPTY
                     && position.board[square - 3] == EMPTY
+                    && !is_square_attacked(square, position)
+                    && !is_square_attacked(square - 1, position)
                 {
                     moves.push(Move {
                         from: square,
@@ -148,8 +254,12 @@ fn generate_crawling_moves(square: usize, position: &Position, moves: &mut Vec<M
         }
 
         if !position.is_white_turn && (position.castling_rights[2] || position.castling_rights[3]) {
-            if position.castling_rights[0] {
-                if position.board[square + 1] == EMPTY && position.board[square + 2] == EMPTY {
+            if position.castling_rights[2] {
+                if position.board[square + 1] == EMPTY
+                    && position.board[square + 2] == EMPTY
+                    && !is_square_attacked(square, position)
+                    && !is_square_attacked(square + 1, position)
+                {
                     moves.push(Move {
                         from: square,
                         to: square + 2,
@@ -161,10 +271,12 @@ fn generate_crawling_moves(square: usize, position: &Position, moves: &mut Vec<M
                     });
                 }
             }
-            if position.castling_rights[1] {
+            if position.castling_rights[3] {
                 if position.board[square - 1] == EMPTY
                     && position.board[square - 2] == EMPTY
                     && position.board[square - 3] == EMPTY
+                    && !is_square_attacked(square, position)
+                    && !is_square_attacked(square - 1, position)
                 {
                     moves.push(Move {
                         from: square,
@@ -181,7 +293,7 @@ fn generate_crawling_moves(square: usize, position: &Position, moves: &mut Vec<M
     }
 
     for pattern in get_piece_move_patterns(piece) {
-        let target_square = ((square as i16) + pattern) as usize;
+        let target_square = square.wrapping_add_signed(pattern);
         if is_off_board(target_square) {
             continue;
         }
@@ -223,7 +335,7 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
     let opponent_color = if is_white { BLACK } else { WHITE };
 
     // Forward move
-    let target_square = ((square as i16) + forward) as usize;
+    let target_square = square.wrapping_add_signed(forward);
     if !is_off_board(target_square) {
         let target_piece = position.board[target_square];
 
@@ -245,7 +357,7 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
 
                 // Double forward move from starting position
                 if get_rank(square) == rank_for_double_move {
-                    let double_target = ((target_square as i16) + forward) as usize;
+                    let double_target = target_square.wrapping_add_signed(forward);
                     if get_piece_type(position.board[double_target]) == EMPTY {
                         moves.push(Move {
                             from: square,
@@ -264,7 +376,7 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
 
     // Diagonal captures
     for diagonal in [forward + E, forward + W] {
-        let target_square = ((square as i16) + diagonal) as usize;
+        let target_square = square.wrapping_add_signed(diagonal);
         if is_off_board(target_square) {
             continue;
         }
@@ -296,7 +408,7 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
     }
 }
 
-pub fn generate_moves(position: &Position) -> Vec<Move> {
+pub fn generate_pseudo_moves(position: &Position) -> Vec<Move> {
     let mut moves: Vec<Move> = Vec::new();
 
     for square in 0..128 {
@@ -317,6 +429,33 @@ pub fn generate_moves(position: &Position) -> Vec<Move> {
     }
 
     moves
+}
+
+pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
+    let pseudo_moves = generate_pseudo_moves(&position);
+    let mut legal_moves: Vec<Move> = Vec::new();
+    for move_ in &pseudo_moves {
+        let piece_at_target = position.board[move_.to];
+        let original_castling_rights = position.castling_rights;
+        let original_king_squares = position.king_squares;
+        position.make_move(&move_); // make move
+        position.is_white_turn = !position.is_white_turn; // consider from same side before move
+        let idx = match position.is_white_turn {
+            true => 0,
+            false => 1,
+        };
+        if !is_square_attacked(position.king_squares[idx], position) {
+            legal_moves.push(*move_); // TODO DEBUG
+        }
+        position.is_white_turn = !position.is_white_turn;
+        position.unmake_move(
+            &move_,
+            piece_at_target,
+            original_castling_rights,
+            original_king_squares,
+        );
+    }
+    legal_moves
 }
 
 #[allow(dead_code)]

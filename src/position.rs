@@ -8,6 +8,7 @@ pub struct Position {
     pub enpassant_square: Option<usize>,
     // white kingside, white queenside, black kingside, black queenside
     pub castling_rights: [bool; 4],
+    pub king_squares: [usize; 2], // white, black
 }
 
 impl Position {
@@ -18,6 +19,7 @@ impl Position {
         };
         print!("{} to move ", side_to_move);
         print!("castling {:?}", self.castling_rights);
+        print!(" king squares{:?}", self.king_squares);
 
         let mut rank = 8;
         for i in 0..128 {
@@ -39,6 +41,7 @@ impl Position {
             is_white_turn: false,
             enpassant_square: None,
             castling_rights: [false, false, false, false],
+            king_squares: [127, 127], // we dont know yet
         };
         let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
         // currently using only the piece placement, later use side, castling, ep, etc.
@@ -56,6 +59,11 @@ impl Position {
             } else if c == '/' {
                 i += 8;
             } else {
+                if c == 'K' {
+                    pos.king_squares[0] = i;
+                } else if c == 'k' {
+                    pos.king_squares[1] = i;
+                }
                 let piece = piece_from_char(c);
                 pos.board[i] = piece;
                 i += 1;
@@ -75,8 +83,12 @@ impl Position {
         pos
     }
 
-    pub fn generate_moves(&self) -> Vec<Move> {
-        crate::movegen::generate_moves(self)
+    pub fn generate_pseudo_moves(&self) -> Vec<Move> {
+        crate::movegen::generate_pseudo_moves(self)
+    }
+
+    pub fn generate_legal_moves(&mut self) -> Vec<Move> {
+        crate::movegen::generate_legal_moves(self)
     }
 
     fn side_has_castling_rights(&self) -> bool {
@@ -112,6 +124,28 @@ impl Position {
                 self.board[3] = BLACK | ROOK;
                 self.castling_rights[2] = false;
                 self.castling_rights[3] = false;
+            }
+            _ => panic!("invalid square to move to"),
+        }
+    }
+
+    fn revert_castling_move(&mut self, move_: &Move) {
+        match move_.to {
+            118 => {
+                self.board[119] = WHITE | ROOK;
+                self.board[117] = EMPTY;
+            }
+            114 => {
+                self.board[112] = WHITE | ROOK;
+                self.board[115] = EMPTY;
+            }
+            6 => {
+                self.board[7] = BLACK | ROOK;
+                self.board[5] = EMPTY;
+            }
+            2 => {
+                self.board[0] = BLACK | ROOK;
+                self.board[3] = EMPTY;
             }
             _ => panic!("invalid square to move to"),
         }
@@ -156,15 +190,34 @@ impl Position {
             self.handle_castling_move(&move_);
         }
 
+        if get_piece_type(piece) == KING {
+            match self.is_white_turn {
+                true => self.king_squares[0] = move_.to,
+                false => self.king_squares[1] = move_.to,
+            }
+        }
+
         self.board[move_.to] = piece;
         self.board[move_.from] = EMPTY;
         self.is_white_turn = !self.is_white_turn;
     }
 
-    pub fn unmake_move(&mut self, move_: &Move, piece_at_target: u8) {
+    pub fn unmake_move(
+        &mut self,
+        move_: &Move,
+        piece_at_target: u8,
+        original_castling_rights: [bool; 4],
+        original_king_squares: [usize; 2],
+    ) {
         let piece = self.board[move_.to];
         self.board[move_.from] = piece;
         self.board[move_.to] = piece_at_target;
         self.is_white_turn = !self.is_white_turn;
+        self.castling_rights = original_castling_rights;
+        // TODO: Fix unmakemove - for example king squares, do proper reverse
+        self.king_squares = original_king_squares;
+        if move_.is_castling {
+            self.revert_castling_move(&move_);
+        }
     }
 }
