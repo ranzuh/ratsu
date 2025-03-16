@@ -53,3 +53,26 @@ pawns move different direction, need to take into account
 need to handle castling - different for both sides
 
 same for en passant
+
+
+Castling
+- need is_square_attacked function
+
+1. check castling rights
+2. check whether squares between king and rook are empty
+3. check are squares that king passes attacked
+4. create a move with king and is_castling flag
+5. in makemove check is_castling flag and move the correct rook next to king based on move_.to
+
+
+Castling rights
+1. if king moves from starting square -> cancel castling rights
+2. if a rook moves from starting square -> cancel castling rights for that side
+3. if a rook get captured -> cancel castling rights for that side
+
+
+
+
+
+
+

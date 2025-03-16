@@ -1,4 +1,4 @@
-use crate::{movegen::print_move, Position};
+use crate::{Position, movegen::print_move};
 
 pub fn perft(depth: u32, position: &mut Position) -> u64 {
     let mut nodes: u64 = 0;

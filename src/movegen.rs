@@ -10,6 +10,11 @@ const W: i16 = -1;
 pub struct Move {
     pub from: usize,
     pub to: usize,
+    pub promoted_piece: Option<u8>,
+    pub is_capture: bool,
+    pub is_enpassant: bool,
+    pub is_double_pawn: bool,
+    pub is_castling: bool,
 }
 
 fn get_piece_move_patterns(piece: u8) -> &'static [i16] {
@@ -61,7 +66,11 @@ fn get_square_string(square: usize) -> String {
 }
 
 pub fn print_move(move_: &Move) {
-    println!("{}{}", get_square_string(move_.from), get_square_string(move_.to));
+    println!(
+        "{}{}",
+        get_square_string(move_.from),
+        get_square_string(move_.to)
+    );
 }
 
 fn generate_sliding_moves(square: usize, position: &Position, moves: &mut Vec<Move>) {
@@ -76,18 +85,26 @@ fn generate_sliding_moves(square: usize, position: &Position, moves: &mut Vec<Mo
             let target_piece = position.board[target_square];
             if get_piece_color(piece) == get_piece_color(target_piece) {
                 break;
-            }
-            else if target_piece != EMPTY {
+            } else if target_piece != EMPTY {
                 moves.push(Move {
                     from: square,
                     to: target_square,
+                    promoted_piece: None,
+                    is_capture: true,
+                    is_enpassant: false,
+                    is_double_pawn: false,
+                    is_castling: false,
                 });
                 break;
-            }
-            else {
+            } else {
                 moves.push(Move {
                     from: square,
                     to: target_square,
+                    promoted_piece: None,
+                    is_capture: false,
+                    is_enpassant: false,
+                    is_double_pawn: false,
+                    is_castling: false,
                 });
             }
         }
@@ -96,6 +113,73 @@ fn generate_sliding_moves(square: usize, position: &Position, moves: &mut Vec<Mo
 
 fn generate_crawling_moves(square: usize, position: &Position, moves: &mut Vec<Move>) {
     let piece = position.board[square];
+
+    if get_piece_type(piece) == KING {
+        if position.is_white_turn {
+            if position.castling_rights[0] {
+                if position.board[square + 1] == EMPTY && position.board[square + 2] == EMPTY {
+                    moves.push(Move {
+                        from: square,
+                        to: square + 2,
+                        promoted_piece: None,
+                        is_capture: false,
+                        is_enpassant: false,
+                        is_double_pawn: false,
+                        is_castling: true,
+                    });
+                }
+            }
+            if position.castling_rights[1] {
+                if position.board[square - 1] == EMPTY
+                    && position.board[square - 2] == EMPTY
+                    && position.board[square - 3] == EMPTY
+                {
+                    moves.push(Move {
+                        from: square,
+                        to: square - 2,
+                        promoted_piece: None,
+                        is_capture: false,
+                        is_enpassant: false,
+                        is_double_pawn: false,
+                        is_castling: true,
+                    });
+                }
+            }
+        }
+
+        if !position.is_white_turn && (position.castling_rights[2] || position.castling_rights[3]) {
+            if position.castling_rights[0] {
+                if position.board[square + 1] == EMPTY && position.board[square + 2] == EMPTY {
+                    moves.push(Move {
+                        from: square,
+                        to: square + 2,
+                        promoted_piece: None,
+                        is_capture: false,
+                        is_enpassant: false,
+                        is_double_pawn: false,
+                        is_castling: true,
+                    });
+                }
+            }
+            if position.castling_rights[1] {
+                if position.board[square - 1] == EMPTY
+                    && position.board[square - 2] == EMPTY
+                    && position.board[square - 3] == EMPTY
+                {
+                    moves.push(Move {
+                        from: square,
+                        to: square - 2,
+                        promoted_piece: None,
+                        is_capture: false,
+                        is_enpassant: false,
+                        is_double_pawn: false,
+                        is_castling: true,
+                    });
+                }
+            }
+        }
+    }
+
     for pattern in get_piece_move_patterns(piece) {
         let target_square = ((square as i16) + pattern) as usize;
         if is_off_board(target_square) {
@@ -104,11 +188,27 @@ fn generate_crawling_moves(square: usize, position: &Position, moves: &mut Vec<M
         let target_piece = position.board[target_square];
         if get_piece_color(piece) == get_piece_color(target_piece) {
             continue;
+        } else if target_piece != EMPTY {
+            moves.push(Move {
+                from: square,
+                to: target_square,
+                promoted_piece: None,
+                is_capture: true,
+                is_enpassant: false,
+                is_double_pawn: false,
+                is_castling: false,
+            });
+        } else {
+            moves.push(Move {
+                from: square,
+                to: target_square,
+                promoted_piece: None,
+                is_capture: false,
+                is_enpassant: false,
+                is_double_pawn: false,
+                is_castling: false,
+            });
         }
-        moves.push(Move {
-            from: square,
-            to: target_square,
-        });
     }
 }
 
@@ -136,6 +236,11 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
                 moves.push(Move {
                     from: square,
                     to: target_square,
+                    promoted_piece: None,
+                    is_capture: false,
+                    is_enpassant: false,
+                    is_double_pawn: false,
+                    is_castling: false,
                 });
 
                 // Double forward move from starting position
@@ -145,6 +250,11 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
                         moves.push(Move {
                             from: square,
                             to: double_target,
+                            promoted_piece: None,
+                            is_capture: false,
+                            is_enpassant: false,
+                            is_double_pawn: true,
+                            is_castling: false,
                         });
                     }
                 }
@@ -175,6 +285,11 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
                 moves.push(Move {
                     from: square,
                     to: target_square,
+                    promoted_piece: None,
+                    is_capture: true,
+                    is_enpassant: false,
+                    is_double_pawn: false,
+                    is_castling: false,
                 });
             }
         }

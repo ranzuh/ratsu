@@ -3,17 +3,32 @@ mod perft;
 mod piece;
 mod position;
 
+use movegen::{Move, generate_moves, print_move};
 use perft::perft;
 use position::Position;
 
 const START_POSITION_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 fn main() {
-    let custom_fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -";
-    let mut pos = Position::from_fen(START_POSITION_FEN);
+    let custom_fen = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 ";
+    let mut pos = Position::from_fen(custom_fen);
     pos.print();
-
-    println!("{}", perft(3, &mut pos));
+    // let move_ = Move {
+    //     from: 0,
+    //     to: 112,
+    //     promoted_piece: None,
+    //     is_capture: false,
+    //     is_enpassant: false,
+    //     is_double_pawn: false,
+    //     is_castling: false,
+    // };
+    // pos.make_move(&move_);
+    // pos.print();
+    let moves = generate_moves(&pos);
+    for move_ in moves {
+        print_move(&move_);
+    }
+    println!("{}", perft(1, &mut pos));
 }
 
 // 0, 1, 2, 3, 4, 5, 6, 7,                   8, 9, 10, 11, 12, 13, 14, 15,
