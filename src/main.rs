@@ -3,39 +3,16 @@ mod perft;
 mod piece;
 mod position;
 
-use movegen::{Move, generate_pseudo_moves, is_square_attacked, print_move};
-use perft::{CAPTURES, CASTLINGS, ENPASSANTS, PROMOTIONS, perft};
+use movegen::{Move, generate_pseudo_moves, is_square_attacked};
+use perft::{PerftCounts, run_perft};
 use position::Position;
 
 const START_POSITION_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 fn main() {
-    let custom_fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - ";
-    let mut pos = Position::from_fen(START_POSITION_FEN);
-    pos.print();
-    // let move_ = Move {
-    //     from: 49,
-    //     to: 33,
-    //     promoted_piece: None,
-    //     is_capture: false,
-    //     is_enpassant: false,
-    //     is_double_pawn: false,
-    //     is_castling: false,
-    // };
-    // pos.make_move(&move_);
-    // pos.print();
-    // let moves = pos.generate_legal_moves();
-    // for move_ in moves {
-    //     print_move(&move_);
-    // }
-    #[allow(static_mut_refs)]
-    unsafe {
-        println!("{}", perft(5, &mut pos));
-        println!("captures: {}", CAPTURES);
-        println!("castles: {}", CASTLINGS);
-        println!("enpassants: {}", ENPASSANTS);
-        println!("promotions: {}", PROMOTIONS);
-    }
+    let custom_fen = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
+    let mut pos = Position::from_fen(custom_fen);
+    run_perft(5, &mut pos);
 }
 
 // 8   0,   1,   2,   3,   4,   5,   6,   7,                   8, 9, 10, 11, 12, 13, 14, 15,

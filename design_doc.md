@@ -70,7 +70,18 @@ Castling rights
 3. if a rook get captured -> cancel castling rights for that side
 
 
-TODO: En passant 
+En passant 
 
+Make:
+    player1 makes double pawn move (store in movegen) (read in make_move)
+        check if player2 has pawn in either square for enpassant (in make_move?)
+        if has then store the square behind player1 pawn as enpassant in next position (in make_move?)
 
+    if there is enpassant square in position and player has pawn in correct rank (in movegen)
+        add pawn capture with enpassant flag for each pawn that are in position to do en passant (max 2)
+
+    if position has enpassant square (in make_move) remove it from the next position
+
+Unmake:
+    enpassant square needs to be same that it was
 

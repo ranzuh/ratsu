@@ -53,7 +53,7 @@ fn get_rank(square: usize) -> usize {
     square >> 4
 }
 
-fn get_square_string(square: usize) -> String {
+pub fn get_square_string(square: usize) -> String {
     if is_off_board(square) {
         panic!("Square {} is off board!", square);
     }
@@ -66,12 +66,12 @@ fn get_square_string(square: usize) -> String {
     format!("{}{}", file_char, rank_char)
 }
 
-pub fn print_move(move_: &Move) {
-    println!(
+pub fn get_move_string(move_: &Move) -> String {
+    format!(
         "{}{}",
         get_square_string(move_.from),
         get_square_string(move_.to)
-    );
+    )
 }
 
 pub fn is_square_attacked(square: usize, position: &Position) -> bool {
@@ -405,6 +405,22 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
                 });
             }
         }
+
+        let ep_square = match position.enpassant_square {
+            Some(square) => square,
+            None => 127,
+        };
+        if target_square == ep_square {
+            moves.push(Move {
+                from: square,
+                to: target_square,
+                promoted_piece: None,
+                is_capture: true,
+                is_enpassant: true,
+                is_double_pawn: false,
+                is_castling: false,
+            })
+        }
     }
 }
 
@@ -438,6 +454,7 @@ pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
         let original_king_squares = position.king_squares;
+        let original_ep_square = position.enpassant_square;
         position.make_move(&move_); // make move
         position.is_white_turn = !position.is_white_turn; // consider from same side before move
         let idx = match position.is_white_turn {
@@ -453,6 +470,7 @@ pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
             piece_at_target,
             original_castling_rights,
             original_king_squares,
+            original_ep_square,
         );
     }
     legal_moves
