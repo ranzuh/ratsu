@@ -85,3 +85,59 @@ Make:
 Unmake:
     enpassant square needs to be same that it was
 
+
+Promotions
+
+movegen.rs
+- if current side pawn is in second to last rank
+    - and can move forward
+        - add all promotion moves
+    - or can capture
+        - add all promotion capture moves
+
+position.rs
+- make_move
+    - if move is promotion, remove piece from from-square and add promoted piece to to-square
+- unmake_move
+    - if move is promotion, replace correct color pawn to from-square
+
+
+Perf test
+
+current unmake implementation:
+debug build
+Perft depth 5: 89941194
+Time taken: 80.43649
+NPS: 1118164
+captures: 7240148
+castles: 1241910
+enpassants: 140
+promotions: 6660288
+
+release build
+Perft depth 5: 89941194
+Time taken: 5.575267
+NPS: 16132177
+captures: 7240148
+castles: 1241910
+enpassants: 140
+promotions: 6660288
+
+current position.clone() implementation
+debug build
+Perft depth 5: 89941194
+Time taken: 80.597176
+NPS: 1115934
+captures: 7240148
+castles: 1241910
+enpassants: 140
+promotions: 6660288
+
+release build
+Perft depth 5: 89941194
+Time taken: 5.6394186
+NPS: 15948664
+captures: 7240148
+castles: 1241910
+enpassants: 140
+promotions: 6660288

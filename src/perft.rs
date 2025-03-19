@@ -31,7 +31,7 @@ fn perft(depth: u32, position: &mut Position, counts: &mut PerftCounts, divide: 
         if move_.promoted_piece.is_some() {
             counts.promotions += 1;
         }
-
+        //let mut pos_copy = position.clone();
         let target_piece = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
         let original_king_squares = position.king_squares;
@@ -42,10 +42,9 @@ fn perft(depth: u32, position: &mut Position, counts: &mut PerftCounts, divide: 
         if divide {
             println!("{} {}", get_move_string(&move_), result);
         }
-        
 
         nodes += result;
-
+        //*position = pos_copy;
         position.unmake_move(
             &move_,
             target_piece,

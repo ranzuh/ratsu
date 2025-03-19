@@ -175,20 +175,20 @@ impl Position {
                     }
                 }
             }
-            // lose castling rights when rook moves or gets captured
-            if move_.from == 119 || move_.to == 119 {
-                self.castling_rights[0] = false;
-            }
-            if move_.from == 112 || move_.to == 112 {
-                self.castling_rights[1] = false;
-            }
+        }
+        // lose castling rights when rook moves or gets captured
+        if move_.from == 119 || move_.to == 119 {
+            self.castling_rights[0] = false;
+        }
+        if move_.from == 112 || move_.to == 112 {
+            self.castling_rights[1] = false;
+        }
 
-            if move_.from == 7 || move_.to == 7 {
-                self.castling_rights[2] = false;
-            }
-            if move_.from == 0 || move_.to == 0 {
-                self.castling_rights[3] = false;
-            }
+        if move_.from == 7 || move_.to == 7 {
+            self.castling_rights[2] = false;
+        }
+        if move_.from == 0 || move_.to == 0 {
+            self.castling_rights[3] = false;
         }
 
         if move_.is_castling {
@@ -224,8 +224,12 @@ impl Position {
                 self.board[move_.to - 16] = EMPTY;
             }
         }
+        if move_.promoted_piece.is_some() {
+            self.board[move_.to] = move_.promoted_piece.unwrap();
+        } else {
+            self.board[move_.to] = piece;
+        }
 
-        self.board[move_.to] = piece;
         self.board[move_.from] = EMPTY;
         self.is_white_turn = !self.is_white_turn;
     }
@@ -250,6 +254,13 @@ impl Position {
                 self.board[move_.to + 16] = BLACK | PAWN;
             } else {
                 self.board[move_.to - 16] = WHITE | PAWN;
+            }
+        }
+        if move_.promoted_piece.is_some() {
+            if self.is_white_turn {
+                self.board[move_.from] = WHITE | PAWN;
+            } else {
+                self.board[move_.from] = BLACK | PAWN;
             }
         }
         self.castling_rights = original_castling_rights;

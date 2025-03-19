@@ -332,6 +332,7 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
     let (forward, rank_for_double_move, promotion_rank) =
         if is_white { (N, 6, 0) } else { (S, 1, 7) };
 
+    let current_color = if is_white { WHITE } else { BLACK };
     let opponent_color = if is_white { BLACK } else { WHITE };
 
     // Forward move
@@ -342,7 +343,17 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
         if get_piece_type(target_piece) == EMPTY {
             // Handle promotion
             if get_rank(target_square) == promotion_rank {
-                // TODO: handle promotion
+                for prom_piece in [KNIGHT, BISHOP, ROOK, QUEEN] {
+                    moves.push(Move {
+                        from: square,
+                        to: target_square,
+                        promoted_piece: Some(current_color | prom_piece),
+                        is_capture: false,
+                        is_enpassant: false,
+                        is_double_pawn: false,
+                        is_castling: false,
+                    });
+                }
             } else {
                 // Normal forward move
                 moves.push(Move {
@@ -392,7 +403,17 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
         if get_piece_color(target_piece) == opponent_color {
             // Handle promotion
             if get_rank(target_square) == promotion_rank {
-                // TODO: handle promotion
+                for prom_piece in [KNIGHT, BISHOP, ROOK, QUEEN] {
+                    moves.push(Move {
+                        from: square,
+                        to: target_square,
+                        promoted_piece: Some(current_color | prom_piece),
+                        is_capture: false,
+                        is_enpassant: false,
+                        is_double_pawn: false,
+                        is_castling: false,
+                    });
+                }
             } else {
                 moves.push(Move {
                     from: square,
@@ -425,7 +446,7 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
 }
 
 pub fn generate_pseudo_moves(position: &Position) -> Vec<Move> {
-    let mut moves: Vec<Move> = Vec::new();
+    let mut moves: Vec<Move> = Vec::with_capacity(100);
 
     for square in 0..128 {
         if is_off_board(square) {
@@ -449,7 +470,7 @@ pub fn generate_pseudo_moves(position: &Position) -> Vec<Move> {
 
 pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
     let pseudo_moves = generate_pseudo_moves(&position);
-    let mut legal_moves: Vec<Move> = Vec::new();
+    let mut legal_moves: Vec<Move> = Vec::with_capacity(100);
     for move_ in &pseudo_moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;

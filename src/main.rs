@@ -3,16 +3,34 @@ mod perft;
 mod piece;
 mod position;
 
-use movegen::{Move, generate_pseudo_moves, is_square_attacked};
+use movegen::{Move, generate_pseudo_moves, get_move_string, is_square_attacked};
 use perft::{PerftCounts, run_perft};
 use position::Position;
 
 const START_POSITION_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 fn main() {
-    let custom_fen = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
+    // let custom_fen = "2n1k3/1P6/8/8/8/8/8/4K3 w - - 0 1";
+    // let mut pos = Position::from_fen(custom_fen);
+    // pos.print();
+    // let moves = pos.generate_legal_moves();
+    // for move_ in &moves {
+    //     println!("{}", get_move_string(&move_));
+    // }
+    // pos.make_move(&moves[4]);
+    // pos.print();
+    // let move_ = Move {
+    //     from: square,
+    //     to: target_square,
+    //     promoted_piece: None,
+    //     is_capture: true,
+    //     is_enpassant: true,
+    //     is_double_pawn: false,
+    //     is_castling: false,
+    // };
+    let custom_fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
     let mut pos = Position::from_fen(custom_fen);
-    run_perft(5, &mut pos);
+    run_perft(4, &mut pos);
 }
 
 // 8   0,   1,   2,   3,   4,   5,   6,   7,                   8, 9, 10, 11, 12, 13, 14, 15,
