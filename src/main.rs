@@ -30,7 +30,7 @@ fn main() {
     // };
     let custom_fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
     let mut pos = Position::from_fen(custom_fen);
-    run_perft(4, &mut pos);
+    run_perft(5, &mut pos);
 }
 
 // 8   0,   1,   2,   3,   4,   5,   6,   7,                   8, 9, 10, 11, 12, 13, 14, 15,

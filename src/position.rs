@@ -1,7 +1,6 @@
 use crate::movegen::{Move, get_square_string, is_off_board};
 use crate::piece::*;
 
-#[derive(Clone, Copy)]
 pub struct Position {
     pub board: [u8; 128],
     pub is_white_turn: bool,
@@ -12,6 +11,7 @@ pub struct Position {
 }
 
 impl Position {
+    #[allow(dead_code)]
     pub fn print(&self) {
         let side_to_move = match self.is_white_turn {
             true => "White",
@@ -88,6 +88,7 @@ impl Position {
         pos
     }
 
+    #[allow(dead_code)]
     pub fn generate_pseudo_moves(&self) -> Vec<Move> {
         crate::movegen::generate_pseudo_moves(self)
     }
@@ -158,12 +159,12 @@ impl Position {
 
     pub fn make_move(&mut self, move_: &Move) {
         let piece = self.board[move_.from];
-
+        let piece_type = get_piece_type(piece);
         self.enpassant_square = None;
 
         if self.side_has_castling_rights() {
             // lose castling rights when king moves
-            if get_piece_type(piece) == KING {
+            if piece_type == KING {
                 match self.is_white_turn {
                     true => {
                         self.castling_rights[0] = false;
@@ -179,15 +180,11 @@ impl Position {
         // lose castling rights when rook moves or gets captured
         if move_.from == 119 || move_.to == 119 {
             self.castling_rights[0] = false;
-        }
-        if move_.from == 112 || move_.to == 112 {
+        } else if move_.from == 112 || move_.to == 112 {
             self.castling_rights[1] = false;
-        }
-
-        if move_.from == 7 || move_.to == 7 {
+        } else if move_.from == 7 || move_.to == 7 {
             self.castling_rights[2] = false;
-        }
-        if move_.from == 0 || move_.to == 0 {
+        } else if move_.from == 0 || move_.to == 0 {
             self.castling_rights[3] = false;
         }
 
@@ -195,7 +192,7 @@ impl Position {
             self.handle_castling_move(&move_);
         }
 
-        if get_piece_type(piece) == KING {
+        if piece_type == KING {
             match self.is_white_turn {
                 true => self.king_squares[0] = move_.to,
                 false => self.king_squares[1] = move_.to,
@@ -210,10 +207,9 @@ impl Position {
                 }
                 let target_piece = self.board[square_to_check];
                 if self.is_white_turn && target_piece == BLACK | PAWN {
-                    self.enpassant_square = Some(move_.to.wrapping_add(16));
-                }
-                if !self.is_white_turn && target_piece == WHITE | PAWN {
-                    self.enpassant_square = Some(move_.to.wrapping_sub(16));
+                    self.enpassant_square = Some(move_.to + 16);
+                } else if !self.is_white_turn && target_piece == WHITE | PAWN {
+                    self.enpassant_square = Some(move_.to - 16);
                 }
             }
         }

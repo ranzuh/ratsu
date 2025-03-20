@@ -16,8 +16,10 @@ pub fn get_piece_type(piece: u8) -> u8 {
     piece & 0b00111
 }
 
+#[allow(dead_code)]
 const PIECES_STRING: &str = ".pnbrqkPNBRQK";
 
+#[allow(dead_code)]
 pub fn get_piece_char(piece: u8) -> char {
     let piece_type = get_piece_type(piece);
     let is_white = get_piece_color(piece) == WHITE;
