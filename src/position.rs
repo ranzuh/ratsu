@@ -189,7 +189,7 @@ impl Position {
         }
 
         if move_.is_castling {
-            self.handle_castling_move(&move_);
+            self.handle_castling_move(move_);
         }
 
         if piece_type == KING {
@@ -239,7 +239,7 @@ impl Position {
         original_ep_square: Option<usize>,
     ) {
         if move_.is_castling {
-            self.revert_castling_move(&move_);
+            self.revert_castling_move(move_);
         }
         let piece = self.board[move_.to];
         self.board[move_.from] = piece;

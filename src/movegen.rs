@@ -116,7 +116,8 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
         let attack_piece = position.board[attack];
         if position.is_white_turn && attack_piece == BLACK | KNIGHT {
             return true;
-        } else if !position.is_white_turn && attack_piece == WHITE | KNIGHT {
+        } 
+        if !position.is_white_turn && attack_piece == WHITE | KNIGHT {
             return true;
         }
     }
@@ -130,7 +131,8 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
         let attack_piece = position.board[attack];
         if position.is_white_turn && attack_piece == BLACK | KING {
             return true;
-        } else if !position.is_white_turn && attack_piece == WHITE | KING {
+        } 
+        if !position.is_white_turn && attack_piece == WHITE | KING {
             return true;
         }
     }
@@ -144,7 +146,8 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
                 && (attack_piece == BLACK | BISHOP || attack_piece == BLACK | QUEEN)
             {
                 return true;
-            } else if !position.is_white_turn
+            } 
+            if !position.is_white_turn
                 && (attack_piece == WHITE | BISHOP || attack_piece == WHITE | QUEEN)
             {
                 return true;
@@ -165,7 +168,8 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
                 && (attack_piece == BLACK | ROOK || attack_piece == BLACK | QUEEN)
             {
                 return true;
-            } else if !position.is_white_turn
+            } 
+            if !position.is_white_turn
                 && (attack_piece == WHITE | ROOK || attack_piece == WHITE | QUEEN)
             {
                 return true;
@@ -434,10 +438,7 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
             }
         }
 
-        let ep_square = match position.enpassant_square {
-            Some(square) => square,
-            None => 127,
-        };
+        let ep_square = position.enpassant_square.unwrap_or(127);
         if target_square == ep_square {
             moves.push(Move {
                 from: square,
@@ -465,9 +466,9 @@ pub fn generate_pseudo_moves(position: &Position) -> Vec<Move> {
             continue;
         }
         match get_piece_type(piece) {
-            BISHOP | ROOK | QUEEN => generate_sliding_moves(square, &position, &mut moves),
-            KNIGHT | KING => generate_crawling_moves(square, &position, &mut moves),
-            PAWN => generate_pawn_moves(square, &position, &mut moves),
+            BISHOP | ROOK | QUEEN => generate_sliding_moves(square, position, &mut moves),
+            KNIGHT | KING => generate_crawling_moves(square, position, &mut moves),
+            PAWN => generate_pawn_moves(square, position, &mut moves),
             _ => continue,
         }
     }
@@ -476,14 +477,14 @@ pub fn generate_pseudo_moves(position: &Position) -> Vec<Move> {
 }
 
 pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
-    let pseudo_moves = generate_pseudo_moves(&position);
+    let pseudo_moves = generate_pseudo_moves(position);
     let mut legal_moves: Vec<Move> = Vec::with_capacity(100);
     for move_ in &pseudo_moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
         let original_king_squares = position.king_squares;
         let original_ep_square = position.enpassant_square;
-        position.make_move(&move_); // make move
+        position.make_move(move_); // make move
         position.is_white_turn = !position.is_white_turn; // consider from same side before move
         let idx = match position.is_white_turn {
             true => 0,
@@ -494,7 +495,7 @@ pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
         }
         position.is_white_turn = !position.is_white_turn;
         position.unmake_move(
-            &move_,
+            move_,
             piece_at_target,
             original_castling_rights,
             original_king_squares,
