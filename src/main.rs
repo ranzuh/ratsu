@@ -2,10 +2,16 @@ mod movegen;
 mod perft;
 mod piece;
 mod position;
+mod search;
+mod uci;
+
+use std::{io, time::Instant};
 
 use movegen::{Move, generate_pseudo_moves, get_move_string, is_square_attacked};
 use perft::{PerftCounts, run_perft};
 use position::Position;
+use search::{evaluate, search};
+use uci::uci_loop;
 
 const START_POSITION_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -28,9 +34,20 @@ fn main() {
     //     is_double_pawn: false,
     //     is_castling: false,
     // };
-    let custom_fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
-    let mut pos = Position::from_fen(custom_fen);
-    run_perft(5, &mut pos);
+    // let custom_fen = "r4qk1/1Q4p1/2pp3p/4p1n1/2PbP1B1/pP1P4/P3R3/1RB4K b - - 0 29";
+    // let mut pos = Position::from_fen(custom_fen);
+    // pos.print();
+    // //println!("{}", evaluate(&pos));
+    // let mut nodecount = 0;
+    // let start = Instant::now();
+    // let best_move = search(&mut pos, 3, &mut nodecount);
+    // let duration = start.elapsed().as_secs_f32();
+    // let nodes_per_sec = (nodecount as f32 / duration) as u64;
+    // println!("Best move: {}", get_move_string(&best_move));
+    // println!("Move count: {}", nodecount);
+    // println!("Nodes_per_sec: {}", nodes_per_sec);
+
+    uci_loop();
 }
 
 // 8   0,   1,   2,   3,   4,   5,   6,   7,                   8, 9, 10, 11, 12, 13, 14, 15,

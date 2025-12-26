@@ -78,10 +78,10 @@ fn alphabeta(
             false => 1,
         };
         if is_square_attacked(position.king_squares[idx], position) {
-            println!("Checkmate!");
+            //println!("Checkmate!");
             return -50000;
         } else {
-            println!("Stalemate!");
+            //println!("Stalemate!");
             return 0;
         }
     }
@@ -140,10 +140,10 @@ pub fn search(position: &mut Position, depth: u32, nodecount: &mut u64) -> Move 
             }
         }
         if value >= beta {
-            println!("{}", best_value);
+            //println!("{}", best_value);
             return best_move.unwrap();
         }
     }
-    println!("{}", best_value);
+    //println!("{}", best_value);
     best_move.expect("Move is None")
 }
