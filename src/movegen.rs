@@ -116,7 +116,7 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
         let attack_piece = position.board[attack];
         if position.is_white_turn && attack_piece == BLACK | KNIGHT {
             return true;
-        } 
+        }
         if !position.is_white_turn && attack_piece == WHITE | KNIGHT {
             return true;
         }
@@ -131,7 +131,7 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
         let attack_piece = position.board[attack];
         if position.is_white_turn && attack_piece == BLACK | KING {
             return true;
-        } 
+        }
         if !position.is_white_turn && attack_piece == WHITE | KING {
             return true;
         }
@@ -146,7 +146,7 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
                 && (attack_piece == BLACK | BISHOP || attack_piece == BLACK | QUEEN)
             {
                 return true;
-            } 
+            }
             if !position.is_white_turn
                 && (attack_piece == WHITE | BISHOP || attack_piece == WHITE | QUEEN)
             {
@@ -168,7 +168,7 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
                 && (attack_piece == BLACK | ROOK || attack_piece == BLACK | QUEEN)
             {
                 return true;
-            } 
+            }
             if !position.is_white_turn
                 && (attack_piece == WHITE | ROOK || attack_piece == WHITE | QUEEN)
             {
