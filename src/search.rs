@@ -11,6 +11,7 @@
 
 use crate::{
     movegen::{Move, is_off_board, is_square_attacked},
+    moveordering::order_moves,
     piece::*,
     position::Position,
 };
@@ -23,14 +24,8 @@ const MATERIAL_ROOK: i32 = 500;
 const MATERIAL_QUEEN: i32 = 900;
 const MATERIAL_KING: i32 = 20000;
 
-fn get_piece_material_score(piece: u8) -> i32 {
-    let side = match get_piece_color(piece) {
-        WHITE => 1,
-        BLACK => -1,
-        EMPTY => 0,
-        _ => panic!("{}", get_piece_color(piece)),
-    };
-    let material_score = match get_piece_type(piece) {
+pub fn get_material_score(piece: u8) -> i32 {
+    match get_piece_type(piece) {
         PAWN => MATERIAL_PAWN,
         KNIGHT => MATERIAL_KNIGHT,
         BISHOP => MATERIAL_BISHOP,
@@ -39,7 +34,17 @@ fn get_piece_material_score(piece: u8) -> i32 {
         KING => MATERIAL_KING,
         EMPTY => 0,
         _ => panic!("{}", get_piece_type(piece)),
+    }
+}
+
+fn get_piece_material_score(piece: u8) -> i32 {
+    let side = match get_piece_color(piece) {
+        WHITE => 1,
+        BLACK => -1,
+        EMPTY => 0,
+        _ => panic!("{}", get_piece_color(piece)),
     };
+    let material_score = get_material_score(piece);
     side * material_score
 }
 
@@ -85,6 +90,8 @@ fn alphabeta(
             return 0;
         }
     }
+    // Move ordering
+    let moves = order_moves(&position, moves);
     for move_ in moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
@@ -118,6 +125,8 @@ pub fn search(position: &mut Position, depth: u32, nodecount: &mut u64) -> Move 
     let mut best_value = -100000;
     let mut alpha = -100000;
     let beta = 100000;
+    // Move ordering
+    let moves = order_moves(&position, moves);
     for move_ in moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
