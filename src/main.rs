@@ -4,6 +4,7 @@ mod perft;
 mod piece;
 mod position;
 mod search;
+mod tactics;
 mod uci;
 
 use std::{io, time::Instant};
