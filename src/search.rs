@@ -10,7 +10,7 @@
 // }
 
 use crate::{
-    movegen::{Move, is_off_board, is_square_attacked},
+    movegen::{Move, get_move_string, is_off_board, is_square_attacked},
     moveordering::order_moves,
     piece::*,
     position::Position,
@@ -120,39 +120,46 @@ fn alphabeta(
 }
 
 pub fn search(position: &mut Position, depth: u32, nodecount: &mut u64) -> Move {
-    let moves = position.generate_legal_moves();
-    let mut best_move = None;
-    let mut best_value = -100000;
-    let mut alpha = -100000;
-    let beta = 100000;
-    // Move ordering
-    let moves = order_moves(&position, moves);
-    for move_ in moves {
-        let piece_at_target = position.board[move_.to];
-        let original_castling_rights = position.castling_rights;
-        let original_king_squares = position.king_squares;
-        let original_ep_square = position.enpassant_square;
-        position.make_move(&move_);
-        let value = -alphabeta(position, -beta, -alpha, depth, nodecount);
-        position.unmake_move(
-            &move_,
-            piece_at_target,
-            original_castling_rights,
-            original_king_squares,
-            original_ep_square,
-        );
-        if value > best_value {
-            best_move = Some(move_);
-            best_value = value;
-            if value > alpha {
-                alpha = value;
+    let mut final_best_move = None;
+    for d in 1..depth + 1 {
+        let moves = position.generate_legal_moves();
+        let mut best_move = None;
+        let mut best_value = -100000;
+        let mut alpha = -100000;
+        let beta = 100000;
+        // Move ordering
+        let moves = order_moves(&position, moves);
+        for move_ in moves {
+            let piece_at_target = position.board[move_.to];
+            let original_castling_rights = position.castling_rights;
+            let original_king_squares = position.king_squares;
+            let original_ep_square = position.enpassant_square;
+            position.make_move(&move_);
+            let value = -alphabeta(position, -beta, -alpha, d, nodecount);
+            position.unmake_move(
+                &move_,
+                piece_at_target,
+                original_castling_rights,
+                original_king_squares,
+                original_ep_square,
+            );
+            if value > best_value {
+                best_move = Some(move_);
+                best_value = value;
+                if value > alpha {
+                    alpha = value;
+                }
+            }
+            if value >= beta {
+                //println!("{}", best_value);
+                final_best_move = best_move;
             }
         }
-        if value >= beta {
-            //println!("{}", best_value);
-            return best_move.unwrap();
-        }
+        println!(
+            "info score cp {best_value} depth {d} nodes {nodecount} pv {}",
+            get_move_string(&best_move.unwrap())
+        );
+        final_best_move = best_move;
     }
-    //println!("{}", best_value);
-    best_move.expect("Move is None")
+    final_best_move.expect("Move is None")
 }
