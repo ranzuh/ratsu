@@ -81,7 +81,15 @@ fn handle_go(input: &String, position: &mut Position) {
     // Tell the engine that White's increment per move in ms if x > 0.
     // binc <x>
 
-    // Need to parse depth and run search given that
+    // default depth
+    let mut depth: u32 = 4;
+
+    // Parse depth
+    if input.contains("depth") {
+        let index = input.find("depth").unwrap();
+        depth = input[index + 6..].trim().parse::<u32>().unwrap();
+        println!("{depth}");
+    }
 
     // Need to consider movetime, wtime, btime, and increments
     // basic time management
@@ -90,7 +98,7 @@ fn handle_go(input: &String, position: &mut Position) {
 
     let mut nodecount = 0;
     let start = Instant::now();
-    let best_move = search(position, 4, &mut nodecount);
+    let best_move = search(position, depth, &mut nodecount);
     let duration = start.elapsed().as_secs_f32();
     let nodes_per_sec = (nodecount as f32 / duration) as u64;
 
