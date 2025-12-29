@@ -1,21 +1,4 @@
-mod movegen;
-mod moveordering;
-mod perft;
-mod piece;
-mod position;
-mod search;
-mod tactics;
-mod uci;
-
-use std::{io, time::Instant};
-
-use movegen::{Move, generate_pseudo_moves, get_move_string, is_square_attacked};
-use perft::{PerftCounts, run_perft};
-use position::Position;
-use search::{evaluate, search};
-use uci::uci_loop;
-
-const START_POSITION_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+use rustchess::uci::uci_loop;
 
 fn main() {
     // let custom_fen = "2n1k3/1P6/8/8/8/8/8/4K3 w - - 0 1";

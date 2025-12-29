@@ -1,8 +1,6 @@
-#[cfg(test)]
-mod tests {
-    use crate::{movegen::get_move_string, position::Position, search::search};
+use rustchess::{movegen::get_move_string, position::Position, search::search};
 
-    #[rustfmt::skip]
+#[rustfmt::skip]
     const WAC_POSITIONS: &[(&str, &str, u32)] = &[
         ("2rr3k/pp3pp1/1nnqbN1p/3pN3/2pP4/2P3Q1/PPB4P/R4RK1 w - -", "g3g6", 4),
         ("5rk1/1ppb3p/p1pb4/6q1/3P1p1r/2P1R2P/PP1BQ1P1/5RKN w - -", "e3g3", 4),
@@ -20,13 +18,12 @@ mod tests {
         ("5rk1/1b3p1p/pp3p2/3n1N2/1P6/P1qB1PP1/3Q3P/4R1K1 w - -", "d2h6", 6),
     ];
 
-    #[test]
-    fn win_at_chess() {
-        for (fen, exp_move, depth) in WAC_POSITIONS {
-            let mut pos = Position::from_fen(fen);
-            let mut nodecount = 0;
-            let best_move = search(&mut pos, *depth, &mut nodecount);
-            assert_eq!(get_move_string(&best_move), *exp_move);
-        }
+#[test]
+fn win_at_chess() {
+    for (fen, exp_move, depth) in WAC_POSITIONS {
+        let mut pos = Position::from_fen(fen);
+        let mut nodecount = 0;
+        let best_move = search(&mut pos, *depth, &mut nodecount);
+        assert_eq!(get_move_string(&best_move), *exp_move);
     }
 }
