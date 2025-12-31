@@ -1,20 +1,48 @@
-// int negaMax( int depth ) {
-//     if ( depth == 0 ) return evaluate();
-//     int max = -oo;
-//     for ( all moves)  {
-//         score = -negaMax( depth - 1 );
-//         if( score > max )
-//             max = score;
-//     }
-//     return max;
-// }
-
 use crate::{
     evaluation::evaluate,
     movegen::{Move, get_move_string, is_square_attacked},
     moveordering::order_moves,
     position::Position,
 };
+
+fn quiescence(position: &mut Position, mut alpha: i32, beta: i32, nodecount: &mut u64) -> i32 {
+    let value = evaluate(position);
+
+    if value >= beta {
+        return beta; // fail hard beta-cutoff
+    }
+    if value > alpha {
+        alpha = value; // new lower bound -> pv move
+    }
+
+    let moves = position.generate_tactical_moves();
+
+    // Move ordering
+    let moves = order_moves(&position, moves);
+    for move_ in moves {
+        let piece_at_target = position.board[move_.to];
+        let original_castling_rights = position.castling_rights;
+        let original_king_squares = position.king_squares;
+        let original_ep_square = position.enpassant_square;
+        position.make_move(&move_);
+        *nodecount += 1;
+        let value = -quiescence(position, -beta, -alpha, nodecount);
+        position.unmake_move(
+            &move_,
+            piece_at_target,
+            original_castling_rights,
+            original_king_squares,
+            original_ep_square,
+        );
+        if value >= beta {
+            return beta; // fail hard beta-cutoff
+        }
+        if value > alpha {
+            alpha = value; // new lower bound -> pv move
+        }
+    }
+    alpha
+}
 
 fn alphabeta(
     position: &mut Position,
@@ -24,10 +52,8 @@ fn alphabeta(
     nodecount: &mut u64,
 ) -> i32 {
     if depth == 0 {
-        *nodecount += 1;
-        return evaluate(position);
+        return quiescence(position, alpha, beta, nodecount);
     }
-    let mut best_value = -100000;
     let moves = position.generate_legal_moves();
     if moves.is_empty() {
         let idx = match position.is_white_turn {
@@ -35,10 +61,8 @@ fn alphabeta(
             false => 1,
         };
         if is_square_attacked(position.king_squares[idx], position) {
-            //println!("Checkmate!");
             return -50000;
         } else {
-            //println!("Stalemate!");
             return 0;
         }
     }
@@ -50,6 +74,7 @@ fn alphabeta(
         let original_king_squares = position.king_squares;
         let original_ep_square = position.enpassant_square;
         position.make_move(&move_);
+        *nodecount += 1;
         let value = -alphabeta(position, -beta, -alpha, depth - 1, nodecount);
         position.unmake_move(
             &move_,
@@ -58,17 +83,14 @@ fn alphabeta(
             original_king_squares,
             original_ep_square,
         );
-        if value > best_value {
-            best_value = value;
-            if value > alpha {
-                alpha = value;
-            }
-        }
         if value >= beta {
-            return best_value;
+            return beta; // fail hard beta-cutoff
+        }
+        if value > alpha {
+            alpha = value; // new lower bound -> pv move
         }
     }
-    best_value
+    alpha
 }
 
 pub fn search(position: &mut Position, depth: u32, nodecount: &mut u64) -> Move {
@@ -87,6 +109,7 @@ pub fn search(position: &mut Position, depth: u32, nodecount: &mut u64) -> Move 
             let original_king_squares = position.king_squares;
             let original_ep_square = position.enpassant_square;
             position.make_move(&move_);
+            *nodecount += 1;
             let value = -alphabeta(position, -beta, -alpha, d, nodecount);
             position.unmake_move(
                 &move_,
@@ -103,7 +126,6 @@ pub fn search(position: &mut Position, depth: u32, nodecount: &mut u64) -> Move 
                 }
             }
             if value >= beta {
-                //println!("{}", best_value);
                 final_best_move = best_move;
             }
         }

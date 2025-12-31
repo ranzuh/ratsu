@@ -90,7 +90,11 @@ impl Position {
 
     #[allow(dead_code)]
     pub fn generate_pseudo_moves(&self) -> Vec<Move> {
-        crate::movegen::generate_pseudo_moves(self)
+        crate::movegen::generate_pseudo_moves(self, false)
+    }
+
+    pub fn generate_tactical_moves(&self) -> Vec<Move> {
+        crate::movegen::generate_pseudo_moves(self, true)
     }
 
     pub fn generate_legal_moves(&mut self) -> Vec<Move> {

@@ -197,7 +197,12 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
     false
 }
 
-fn generate_sliding_moves(square: usize, position: &Position, moves: &mut Vec<Move>) {
+fn generate_sliding_moves(
+    square: usize,
+    position: &Position,
+    moves: &mut Vec<Move>,
+    only_tactical_moves: bool,
+) {
     let piece = position.board[square];
     for pattern in get_piece_move_patterns(piece) {
         let mut target_square = square;
@@ -220,7 +225,7 @@ fn generate_sliding_moves(square: usize, position: &Position, moves: &mut Vec<Mo
                     is_castling: false,
                 });
                 break;
-            } else {
+            } else if !only_tactical_moves {
                 moves.push(Move {
                     from: square,
                     to: target_square,
@@ -235,10 +240,15 @@ fn generate_sliding_moves(square: usize, position: &Position, moves: &mut Vec<Mo
     }
 }
 
-fn generate_crawling_moves(square: usize, position: &Position, moves: &mut Vec<Move>) {
+fn generate_crawling_moves(
+    square: usize,
+    position: &Position,
+    moves: &mut Vec<Move>,
+    only_tactical_moves: bool,
+) {
     let piece = position.board[square];
 
-    if get_piece_type(piece) == KING {
+    if get_piece_type(piece) == KING && !only_tactical_moves {
         if position.is_white_turn {
             if position.castling_rights[0] {
                 if position.board[square + 1] == EMPTY
@@ -334,7 +344,7 @@ fn generate_crawling_moves(square: usize, position: &Position, moves: &mut Vec<M
                 is_double_pawn: false,
                 is_castling: false,
             });
-        } else {
+        } else if !only_tactical_moves {
             moves.push(Move {
                 from: square,
                 to: target_square,
@@ -348,7 +358,12 @@ fn generate_crawling_moves(square: usize, position: &Position, moves: &mut Vec<M
     }
 }
 
-fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>) {
+fn generate_pawn_moves(
+    square: usize,
+    position: &Position,
+    moves: &mut Vec<Move>,
+    only_tactical_moves: bool,
+) {
     let is_white = position.is_white_turn;
     let piece = position.board[square];
 
@@ -378,7 +393,7 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
                         is_castling: false,
                     });
                 }
-            } else {
+            } else if !only_tactical_moves {
                 // Normal forward move
                 moves.push(Move {
                     from: square,
@@ -466,7 +481,7 @@ fn generate_pawn_moves(square: usize, position: &Position, moves: &mut Vec<Move>
     }
 }
 
-pub fn generate_pseudo_moves(position: &Position) -> Vec<Move> {
+pub fn generate_pseudo_moves(position: &Position, only_tactical_moves: bool) -> Vec<Move> {
     let mut moves: Vec<Move> = Vec::with_capacity(100);
 
     for square in 0..128 {
@@ -479,9 +494,13 @@ pub fn generate_pseudo_moves(position: &Position) -> Vec<Move> {
             continue;
         }
         match get_piece_type(piece) {
-            BISHOP | ROOK | QUEEN => generate_sliding_moves(square, position, &mut moves),
-            KNIGHT | KING => generate_crawling_moves(square, position, &mut moves),
-            PAWN => generate_pawn_moves(square, position, &mut moves),
+            BISHOP | ROOK | QUEEN => {
+                generate_sliding_moves(square, position, &mut moves, only_tactical_moves)
+            }
+            KNIGHT | KING => {
+                generate_crawling_moves(square, position, &mut moves, only_tactical_moves)
+            }
+            PAWN => generate_pawn_moves(square, position, &mut moves, only_tactical_moves),
             _ => continue,
         }
     }
@@ -490,7 +509,7 @@ pub fn generate_pseudo_moves(position: &Position) -> Vec<Move> {
 }
 
 pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
-    let pseudo_moves = generate_pseudo_moves(position);
+    let pseudo_moves = generate_pseudo_moves(position, false);
     let mut legal_moves: Vec<Move> = Vec::with_capacity(100);
     for move_ in &pseudo_moves {
         let piece_at_target = position.board[move_.to];
