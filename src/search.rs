@@ -1,24 +1,49 @@
 use crate::{
     evaluation::evaluate,
     movegen::{Move, get_move_string, is_square_attacked},
-    moveordering::order_moves,
+    moveordering::order_moves_inplace,
     position::Position,
 };
 
-fn quiescence(position: &mut Position, mut alpha: i32, beta: i32, nodecount: &mut u64) -> i32 {
-    let value = evaluate(position);
+const MAX_DEPTH: usize = 64;
 
-    if value >= beta {
+struct PvLine {
+    moves: [Option<Move>; MAX_DEPTH],
+    count: usize,
+}
+
+impl PvLine {
+    fn new() -> Self {
+        PvLine {
+            moves: [None; MAX_DEPTH],
+            count: 0,
+        }
+    }
+
+    fn clear(&mut self) {
+        self.count = 0;
+    }
+}
+
+fn quiescence(
+    position: &mut Position,
+    mut alpha: i32,
+    beta: i32,
+    nodecount: &mut u64,
+) -> i32 {
+    let stand_pat = evaluate(position);
+
+    if stand_pat >= beta {
         return beta; // fail hard beta-cutoff
     }
-    if value > alpha {
-        alpha = value; // new lower bound -> pv move
+    if stand_pat > alpha {
+        alpha = stand_pat; // new lower bound -> pv move
     }
 
-    let moves = position.generate_tactical_moves();
+    let mut moves = position.generate_tactical_moves();
 
     // Move ordering
-    let moves = order_moves(&position, moves);
+    order_moves_inplace(&position, &mut moves);
     for move_ in moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
@@ -50,12 +75,17 @@ fn alphabeta(
     beta: i32,
     depth: u32,
     nodecount: &mut u64,
+    pv: &mut PvLine,
 ) -> i32 {
+    // leaf node
     if depth == 0 {
+        pv.clear();
         return quiescence(position, alpha, beta, nodecount);
     }
-    let moves = position.generate_legal_moves();
+    let mut line = PvLine::new(); // Local PV buffer for children
+    let mut moves = position.generate_legal_moves();
     if moves.is_empty() {
+        pv.clear();
         let idx = match position.is_white_turn {
             true => 0,
             false => 1,
@@ -67,7 +97,7 @@ fn alphabeta(
         }
     }
     // Move ordering
-    let moves = order_moves(&position, moves);
+    order_moves_inplace(&position, &mut moves);
     for move_ in moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
@@ -75,7 +105,7 @@ fn alphabeta(
         let original_ep_square = position.enpassant_square;
         position.make_move(&move_);
         *nodecount += 1;
-        let value = -alphabeta(position, -beta, -alpha, depth - 1, nodecount);
+        let value = -alphabeta(position, -beta, -alpha, depth - 1, nodecount, &mut line);
         position.unmake_move(
             &move_,
             piece_at_target,
@@ -88,52 +118,29 @@ fn alphabeta(
         }
         if value > alpha {
             alpha = value; // new lower bound -> pv move
+
+            // Update PV: prepend current move to child's PV
+            pv.moves[0] = Some(move_);
+            pv.moves[1..=line.count].copy_from_slice(&line.moves[..line.count]);
+            pv.count = line.count + 1;
         }
     }
     alpha
 }
 
 pub fn search(position: &mut Position, depth: u32, nodecount: &mut u64) -> Move {
-    let mut final_best_move = None;
+    let mut pv = PvLine::new();
     for d in 1..depth + 1 {
-        let moves = position.generate_legal_moves();
-        let mut best_move = None;
-        let mut best_value = -100000;
-        let mut alpha = -100000;
-        let beta = 100000;
-        // Move ordering
-        let moves = order_moves(&position, moves);
-        for move_ in moves {
-            let piece_at_target = position.board[move_.to];
-            let original_castling_rights = position.castling_rights;
-            let original_king_squares = position.king_squares;
-            let original_ep_square = position.enpassant_square;
-            position.make_move(&move_);
-            *nodecount += 1;
-            let value = -alphabeta(position, -beta, -alpha, d, nodecount);
-            position.unmake_move(
-                &move_,
-                piece_at_target,
-                original_castling_rights,
-                original_king_squares,
-                original_ep_square,
-            );
-            if value > best_value {
-                best_move = Some(move_);
-                best_value = value;
-                if value > alpha {
-                    alpha = value;
-                }
-            }
-            if value >= beta {
-                final_best_move = best_move;
-            }
-        }
+        let value = alphabeta(position, -100000, 100000, d, nodecount, &mut pv);
+        let pv_string = pv.moves
+            .iter()
+            .flatten()  // filters out None and unwraps Some
+            .map(|m| get_move_string(m))
+            .collect::<Vec<_>>()
+            .join(" ");
         println!(
-            "info score cp {best_value} depth {d} nodes {nodecount} pv {}",
-            get_move_string(&best_move.unwrap())
+            "info score cp {value} depth {d} nodes {nodecount} pv {pv_string}",
         );
-        final_best_move = best_move;
     }
-    final_best_move.expect("Move is None")
+    pv.moves[0].expect("pv should have moves")
 }
