@@ -110,13 +110,14 @@ fn handle_go(input: &String, position: &mut Position) {
 
     // search needs to support basic time management, stopping early etc.
 
-    let mut nodecount = 0;
     let start = Instant::now();
-    let best_move = search(position, depth, &mut nodecount);
+    let search_info = search(position, depth);
     let duration = start.elapsed().as_secs_f32();
-    let nodes_per_sec = (nodecount as f32 / duration) as u64;
+    let node_count = search_info.node_count;
+    let nodes_per_sec = (node_count as f32 / duration) as u64;
+    let best_move = search_info.prev_pv.moves[0].expect("pv should have moves");
 
-    println!("info nodes {}", nodecount);
+    println!("info nodes {}", node_count);
     println!("info nps {}", nodes_per_sec);
     println!("bestmove {}", get_move_string(&best_move));
 }

@@ -22,8 +22,9 @@ use rustchess::{movegen::get_move_string, position::Position, search::search};
 fn win_at_chess() {
     for (fen, exp_move, depth) in WAC_POSITIONS {
         let mut pos = Position::from_fen(fen);
-        let mut nodecount = 0;
-        let best_move = search(&mut pos, *depth, &mut nodecount);
+        println!("{}", fen);
+        let search_info = search(&mut pos, *depth);
+        let best_move = search_info.prev_pv.moves[0].expect("pv should have moves");
         assert_eq!(get_move_string(&best_move), *exp_move);
     }
 }

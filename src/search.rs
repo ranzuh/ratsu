@@ -7,9 +7,10 @@ use crate::{
 
 const MAX_DEPTH: usize = 64;
 
-struct PvLine {
-    moves: [Option<Move>; MAX_DEPTH],
-    count: usize,
+#[derive(Debug, Clone, Copy)]
+pub struct PvLine {
+    pub moves: [Option<Move>; MAX_DEPTH],
+    pub count: usize,
 }
 
 impl PvLine {
@@ -25,11 +26,17 @@ impl PvLine {
     }
 }
 
+pub struct SearchInfo {
+    pub prev_pv: PvLine,
+    pub node_count: u64,
+}
+
 fn quiescence(
     position: &mut Position,
     mut alpha: i32,
     beta: i32,
-    nodecount: &mut u64,
+    ply: u32,
+    info: &mut SearchInfo,
 ) -> i32 {
     let stand_pat = evaluate(position);
 
@@ -43,15 +50,15 @@ fn quiescence(
     let mut moves = position.generate_tactical_moves();
 
     // Move ordering
-    order_moves_inplace(&position, &mut moves);
+    order_moves_inplace(&position, &mut moves, ply, info);
     for move_ in moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
         let original_king_squares = position.king_squares;
         let original_ep_square = position.enpassant_square;
         position.make_move(&move_);
-        *nodecount += 1;
-        let value = -quiescence(position, -beta, -alpha, nodecount);
+        info.node_count += 1;
+        let value = -quiescence(position, -beta, -alpha, ply + 1, info);
         position.unmake_move(
             &move_,
             piece_at_target,
@@ -74,13 +81,14 @@ fn alphabeta(
     mut alpha: i32,
     beta: i32,
     depth: u32,
-    nodecount: &mut u64,
+    ply: u32,
     pv: &mut PvLine,
+    info: &mut SearchInfo,
 ) -> i32 {
     // leaf node
     if depth == 0 {
         pv.clear();
-        return quiescence(position, alpha, beta, nodecount);
+        return quiescence(position, alpha, beta, ply + 1, info);
     }
     let mut line = PvLine::new(); // Local PV buffer for children
     let mut moves = position.generate_legal_moves();
@@ -97,15 +105,15 @@ fn alphabeta(
         }
     }
     // Move ordering
-    order_moves_inplace(&position, &mut moves);
+    order_moves_inplace(&position, &mut moves, ply, info);
     for move_ in moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
         let original_king_squares = position.king_squares;
         let original_ep_square = position.enpassant_square;
         position.make_move(&move_);
-        *nodecount += 1;
-        let value = -alphabeta(position, -beta, -alpha, depth - 1, nodecount, &mut line);
+        info.node_count += 1;
+        let value = -alphabeta(position, -beta, -alpha, depth - 1, ply + 1, &mut line, info);
         position.unmake_move(
             &move_,
             piece_at_target,
@@ -128,19 +136,31 @@ fn alphabeta(
     alpha
 }
 
-pub fn search(position: &mut Position, depth: u32, nodecount: &mut u64) -> Move {
-    let mut pv = PvLine::new();
+pub fn search(position: &mut Position, depth: u32) -> SearchInfo {
+    let mut info = SearchInfo {
+        prev_pv: PvLine::new(),
+        node_count: 0,
+    };
     for d in 1..depth + 1 {
-        let value = alphabeta(position, -100000, 100000, d, nodecount, &mut pv);
-        let pv_string = pv.moves
+        let mut pv = PvLine::new();
+        let alpha = -100000;
+        let beta = 100000;
+        let ply = 0;
+        let value = alphabeta(position, alpha, beta, d, ply, &mut pv, &mut info);
+
+        info.prev_pv = pv.clone();
+
+        let pv_string = pv
+            .moves
             .iter()
-            .flatten()  // filters out None and unwraps Some
+            .flatten() // filters out None and unwraps Some
             .map(|m| get_move_string(m))
             .collect::<Vec<_>>()
             .join(" ");
         println!(
-            "info score cp {value} depth {d} nodes {nodecount} pv {pv_string}",
+            "info score cp {value} depth {d} nodes {} pv {pv_string}",
+            info.node_count
         );
     }
-    pv.moves[0].expect("pv should have moves")
+    info
 }
