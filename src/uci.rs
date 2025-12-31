@@ -3,6 +3,7 @@ use std::{io, time::Instant};
 use crate::{
     START_POSITION_FEN,
     movegen::{Move, get_move_string},
+    piece::{BISHOP, BLACK, KNIGHT, QUEEN, ROOK, WHITE},
     position::Position,
     search::search,
 };
@@ -16,20 +17,33 @@ fn read_line() -> String {
 }
 
 fn parse_move(move_string: &str, position: &mut Position) -> Move {
-    // e2e4 e7e5 g1f3 b8c6 f1b5
+    // e2e4 e7e5 g1f3 b8c6 f1b5 c2c1q
     let from_file = move_string.chars().nth(0).unwrap() as usize;
     let from_rank = move_string.chars().nth(1).unwrap().to_digit(10).unwrap() as usize;
     let to_file = move_string.chars().nth(2).unwrap() as usize;
     let to_rank = move_string.chars().nth(3).unwrap().to_digit(10).unwrap() as usize;
 
+    let prom_piece_str = move_string.chars().nth(4);
+    let piece_color = match position.is_white_turn {
+        true => WHITE,
+        false => BLACK,
+    };
+    let prom_piece = match prom_piece_str {
+        Some('n') => Some(KNIGHT | piece_color),
+        Some('b') => Some(BISHOP | piece_color),
+        Some('r') => Some(ROOK | piece_color),
+        Some('q') => Some(QUEEN | piece_color),
+        Some(_other) => None,
+        None => None,
+    };
+
     let from_square = (from_file - 97) + ((8 - from_rank) * 16);
-    println!("{from_square}");
     let to_square = (to_file - 97) + ((8 - to_rank) * 16);
-    println!("{to_square}");
 
     let moves = position.generate_legal_moves();
     for move_ in &moves {
-        if move_.from == from_square && move_.to == to_square {
+        if move_.from == from_square && move_.to == to_square && move_.promoted_piece == prom_piece
+        {
             return move_.clone();
         }
     }

@@ -72,10 +72,23 @@ pub fn get_square_string(square: usize) -> String {
 }
 
 pub fn get_move_string(move_: &Move) -> String {
+    let prom_piece_type = move_
+        .promoted_piece
+        .and_then(|piece| Some(get_piece_type(piece)));
+    let prom_str = match prom_piece_type {
+        Some(KNIGHT) => "n",
+        Some(BISHOP) => "b",
+        Some(ROOK) => "r",
+        Some(QUEEN) => "q",
+        Some(_other) => panic!("unexpected promotion piece {}", _other),
+        None => "",
+    };
+
     format!(
-        "{}{}",
+        "{}{}{}",
         get_square_string(move_.from),
-        get_square_string(move_.to)
+        get_square_string(move_.to),
+        prom_str
     )
 }
 
