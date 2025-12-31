@@ -10,59 +10,11 @@
 // }
 
 use crate::{
-    movegen::{Move, get_move_string, is_off_board, is_square_attacked},
+    evaluation::evaluate,
+    movegen::{Move, get_move_string, is_square_attacked},
     moveordering::order_moves,
-    piece::*,
     position::Position,
 };
-use core::panic;
-
-const MATERIAL_PAWN: i32 = 100;
-const MATERIAL_KNIGHT: i32 = 320;
-const MATERIAL_BISHOP: i32 = 330;
-const MATERIAL_ROOK: i32 = 500;
-const MATERIAL_QUEEN: i32 = 900;
-const MATERIAL_KING: i32 = 20000;
-
-pub fn get_material_score(piece: u8) -> i32 {
-    match get_piece_type(piece) {
-        PAWN => MATERIAL_PAWN,
-        KNIGHT => MATERIAL_KNIGHT,
-        BISHOP => MATERIAL_BISHOP,
-        ROOK => MATERIAL_ROOK,
-        QUEEN => MATERIAL_QUEEN,
-        KING => MATERIAL_KING,
-        EMPTY => 0,
-        _ => panic!("{}", get_piece_type(piece)),
-    }
-}
-
-fn get_piece_material_score(piece: u8) -> i32 {
-    let side = match get_piece_color(piece) {
-        WHITE => 1,
-        BLACK => -1,
-        EMPTY => 0,
-        _ => panic!("{}", get_piece_color(piece)),
-    };
-    let material_score = get_material_score(piece);
-    side * material_score
-}
-
-pub fn evaluate(position: &Position) -> i32 {
-    let mut score = 0;
-    let side = match position.is_white_turn {
-        true => 1,
-        false => -1,
-    };
-    for square in 0..128 {
-        if is_off_board(square) {
-            continue;
-        }
-        let piece = position.board[square];
-        score += side * get_piece_material_score(piece);
-    }
-    score
-}
 
 fn alphabeta(
     position: &mut Position,

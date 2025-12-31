@@ -1,10 +1,10 @@
 use std::cmp::Reverse;
 
 use crate::{
+    evaluation::get_material_score,
     movegen::Move,
     piece::{EMPTY, get_piece_type},
     position::Position,
-    search::get_material_score,
 };
 
 pub fn order_moves(pos: &Position, moves: Vec<Move>) -> Vec<Move> {

@@ -49,12 +49,12 @@ pub fn is_off_board(index: usize) -> bool {
 
 #[allow(dead_code)]
 // get file 0..7
-fn get_file(square: usize) -> usize {
+pub fn get_file(square: usize) -> usize {
     square & 7
 }
 
 // get rank 0..7
-fn get_rank(square: usize) -> usize {
+pub fn get_rank(square: usize) -> usize {
     square >> 4
 }
 
