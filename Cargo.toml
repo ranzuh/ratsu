@@ -5,3 +5,4 @@ edition = "2024"
 authors = ["Eetu Rantala"]
 
 [dependencies]
+regex = "1.12.2"

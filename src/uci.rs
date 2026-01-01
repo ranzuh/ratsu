@@ -1,11 +1,16 @@
-use std::{io, time::Instant};
+use std::{
+    io,
+    time::{Duration, Instant},
+};
+
+use regex::Regex;
 
 use crate::{
     START_POSITION_FEN,
     movegen::{Move, get_move_string},
     piece::{BISHOP, BLACK, KNIGHT, QUEEN, ROOK, WHITE},
     position::Position,
-    search::search,
+    search::{Timer, search},
 };
 
 fn read_line() -> String {
@@ -85,37 +90,71 @@ fn handle_position(input: &String, position: &mut Position) {
 }
 
 fn handle_go(input: &String, position: &mut Position) {
-    // go depth x movetime y
-    // > go depth 25
-    // wtime <x>
-    // Tell the engine that White has x ms left on the clock.
-    // btime <x>
-    // Tell the engine that Black has x ms left on the clock.
-    // winc <x>
-    // Tell the engine that White's increment per move in ms if x > 0.
-    // binc <x>
-
     // default depth
-    let mut depth: u32 = 4;
+    let mut depth: u32 = 10;
 
-    // Parse depth
+    let mut movetime: u64 = 0;
+    let mut base: u64 = 0;
+    let mut increment: u64 = 0;
+
     if input.contains("depth") {
         let index = input.find("depth").unwrap();
         depth = input[index + 6..].trim().parse::<u32>().unwrap();
-        println!("{depth}");
+        println!("depth: {depth}");
     }
+    if input.contains("wtime") && position.is_white_turn {
+        let re = Regex::new(r"[\s\S]+wtime (\d+)").unwrap();
+        let Some(caps) = re.captures(input) else {
+            return;
+        };
+        base = caps[1].parse::<u64>().unwrap();
+        println!("wtime: {base}");
+    }
+    if input.contains("winc") && position.is_white_turn {
+        let re = Regex::new(r"[\s\S]+winc (\d+)").unwrap();
+        let Some(caps) = re.captures(input) else {
+            return;
+        };
+        increment = caps[1].parse::<u64>().unwrap();
+        println!("winc: {increment}");
+    }
+    if input.contains("btime") && !position.is_white_turn {
+        let re = Regex::new(r"[\s\S]+btime (\d+)").unwrap();
+        let Some(caps) = re.captures(input) else {
+            return;
+        };
+        base = caps[1].parse::<u64>().unwrap();
+        println!("btime: {base}");
+    }
+    if input.contains("binc") && !position.is_white_turn {
+        let re = Regex::new(r"[\s\S]+binc (\d+)").unwrap();
+        let Some(caps) = re.captures(input) else {
+            return;
+        };
+        increment = caps[1].parse::<u64>().unwrap();
+        println!("binc: {increment}");
+    }
+    if input.contains("movetime") {
+        let index = input.find("movetime").unwrap();
+        movetime = input[index + 9..].trim().parse::<u64>().unwrap();
+        println!("movetime: {movetime}");
+    } else {
+        movetime = base / 20 + increment / 2;
+    }
+    assert_ne!(
+        movetime, 0,
+        "movetime is zero, check that time command is for correct side"
+    );
 
-    // Need to consider movetime, wtime, btime, and increments
-    // basic time management
-
-    // search needs to support basic time management, stopping early etc.
+    let duration = Duration::from_millis(movetime);
 
     let start = Instant::now();
-    let search_info = search(position, depth);
+    let timer = Timer::reset(duration);
+    let search_context = search(position, depth, timer);
     let duration = start.elapsed().as_secs_f32();
-    let node_count = search_info.node_count;
+    let node_count = search_context.node_count;
     let nodes_per_sec = (node_count as f32 / duration) as u64;
-    let best_move = search_info.prev_pv.moves[0].expect("pv should have moves");
+    let best_move = search_context.prev_pv.moves[0].expect("pv should have moves");
 
     println!("info nodes {}", node_count);
     println!("info nps {}", nodes_per_sec);

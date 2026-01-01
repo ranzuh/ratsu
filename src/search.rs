@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use crate::{
     evaluation::evaluate,
     movegen::{Move, get_move_string, is_square_attacked},
@@ -26,9 +28,33 @@ impl PvLine {
     }
 }
 
-pub struct SearchInfo {
+pub struct Timer {
+    start_time: Instant,
+    max_duration: Duration,
+    stopped: bool,
+}
+
+impl Timer {
+    pub fn reset(duration: Duration) -> Self {
+        Timer {
+            start_time: Instant::now(),
+            max_duration: duration,
+            stopped: false,
+        }
+    }
+
+    pub fn should_stop(&mut self, node_count: u64) -> bool {
+        if node_count % 2048 == 0 {
+            self.stopped = self.start_time.elapsed() >= self.max_duration;
+        }
+        self.stopped
+    }
+}
+
+pub struct SearchContext {
     pub prev_pv: PvLine,
     pub node_count: u64,
+    timer: Timer,
 }
 
 fn quiescence(
@@ -36,8 +62,11 @@ fn quiescence(
     mut alpha: i32,
     beta: i32,
     ply: u32,
-    info: &mut SearchInfo,
+    context: &mut SearchContext,
 ) -> i32 {
+    if context.timer.should_stop(context.node_count) {
+        return 0;
+    }
     let stand_pat = evaluate(position);
 
     if stand_pat >= beta {
@@ -50,15 +79,15 @@ fn quiescence(
     let mut moves = position.generate_tactical_moves();
 
     // Move ordering
-    order_moves_inplace(&position, &mut moves, ply, info);
+    order_moves_inplace(&position, &mut moves, ply, context);
     for move_ in moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
         let original_king_squares = position.king_squares;
         let original_ep_square = position.enpassant_square;
         position.make_move(&move_);
-        info.node_count += 1;
-        let value = -quiescence(position, -beta, -alpha, ply + 1, info);
+        context.node_count += 1;
+        let value = -quiescence(position, -beta, -alpha, ply + 1, context);
         position.unmake_move(
             &move_,
             piece_at_target,
@@ -83,12 +112,15 @@ fn alphabeta(
     depth: u32,
     ply: u32,
     pv: &mut PvLine,
-    info: &mut SearchInfo,
+    context: &mut SearchContext,
 ) -> i32 {
+    if context.timer.should_stop(context.node_count) {
+        return 0;
+    }
     // leaf node
     if depth == 0 {
         pv.clear();
-        return quiescence(position, alpha, beta, ply + 1, info);
+        return quiescence(position, alpha, beta, ply + 1, context);
     }
     let mut line = PvLine::new(); // Local PV buffer for children
     let mut moves = position.generate_legal_moves();
@@ -105,15 +137,23 @@ fn alphabeta(
         }
     }
     // Move ordering
-    order_moves_inplace(&position, &mut moves, ply, info);
+    order_moves_inplace(&position, &mut moves, ply, context);
     for move_ in moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
         let original_king_squares = position.king_squares;
         let original_ep_square = position.enpassant_square;
         position.make_move(&move_);
-        info.node_count += 1;
-        let value = -alphabeta(position, -beta, -alpha, depth - 1, ply + 1, &mut line, info);
+        context.node_count += 1;
+        let value = -alphabeta(
+            position,
+            -beta,
+            -alpha,
+            depth - 1,
+            ply + 1,
+            &mut line,
+            context,
+        );
         position.unmake_move(
             &move_,
             piece_at_target,
@@ -136,31 +176,33 @@ fn alphabeta(
     alpha
 }
 
-pub fn search(position: &mut Position, depth: u32) -> SearchInfo {
-    let mut info = SearchInfo {
+pub fn search(position: &mut Position, depth: u32, timer: Timer) -> SearchContext {
+    let mut context = SearchContext {
         prev_pv: PvLine::new(),
         node_count: 0,
+        timer: timer,
     };
     for d in 1..depth + 1 {
         let mut pv = PvLine::new();
         let alpha = -100000;
         let beta = 100000;
         let ply = 0;
-        let value = alphabeta(position, alpha, beta, d, ply, &mut pv, &mut info);
+        let value = alphabeta(position, alpha, beta, d, ply, &mut pv, &mut context);
 
-        info.prev_pv = pv.clone();
-
-        let pv_string = pv
-            .moves
-            .iter()
-            .flatten() // filters out None and unwraps Some
-            .map(|m| get_move_string(m))
-            .collect::<Vec<_>>()
-            .join(" ");
-        println!(
-            "info score cp {value} depth {d} nodes {} pv {pv_string}",
-            info.node_count
-        );
+        if !context.timer.stopped {
+            context.prev_pv = pv.clone();
+            let pv_string = pv
+                .moves
+                .iter()
+                .flatten() // filters out None and unwraps Some
+                .map(|m| get_move_string(m))
+                .collect::<Vec<_>>()
+                .join(" ");
+            println!(
+                "info score cp {value} depth {d} nodes {} pv {pv_string}",
+                context.node_count
+            );
+        }
     }
-    info
+    context
 }
