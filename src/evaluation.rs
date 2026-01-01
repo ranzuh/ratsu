@@ -127,46 +127,32 @@ const QUEEN_PST_BLACK: [i32; 64] = flip_board(&QUEEN_PST);
 const KING_PST_MG_BLACK: [i32; 64] = flip_board(&KING_MG_PST);
 const KING_PST_EG_BLACK: [i32; 64] = flip_board(&KING_EG_PST);
 
-fn get_piece_table_score(pos: &Position) -> i32 {
-    let mut score = 0;
+fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
+    let file = get_file(square);
+    let rank = get_rank(square);
+    let square64 = rank * 8 + file;
 
-    for square in 0..128 {
-        if is_off_board(square) {
-            continue;
-        }
-        let piece = pos.board[square];
-        let piece_type = get_piece_type(piece);
-        if piece_type == EMPTY {
-            continue
-        }
-
-        let file = get_file(square);
-        let rank = get_rank(square);
-        let square64 = rank * 8 + file;
-
-        if get_piece_color(piece) == WHITE {
-            score += match piece_type {
-                PAWN => PAWN_PST[square64],
-                KNIGHT => KNIGHT_PST[square64],
-                BISHOP => BISHOP_PST[square64],
-                ROOK => ROOK_PST[square64],
-                QUEEN => QUEEN_PST[square64],
-                KING => KING_MG_PST[square64],
-                _ => panic!("Unexpected piece {}", piece)
-            }
-        } else {
-            score -= match piece_type {
-                PAWN => PAWN_PST_BLACK[square64],
-                KNIGHT => KNIGHT_PST_BLACK[square64],
-                BISHOP => BISHOP_PST_BLACK[square64],
-                ROOK => ROOK_PST_BLACK[square64],
-                QUEEN => QUEEN_PST_BLACK[square64],
-                KING => KING_PST_MG_BLACK[square64],
-                _ => panic!("Unexpected piece {}", piece)
-            }
-        }
+    if get_piece_color(piece) == WHITE {
+        return match piece_type {
+            PAWN => PAWN_PST[square64],
+            KNIGHT => KNIGHT_PST[square64],
+            BISHOP => BISHOP_PST[square64],
+            ROOK => ROOK_PST[square64],
+            QUEEN => QUEEN_PST[square64],
+            KING => KING_MG_PST[square64],
+            _ => panic!("Unexpected piece {}", piece),
+        };
+    } else {
+        return match piece_type {
+            PAWN => -PAWN_PST_BLACK[square64],
+            KNIGHT => -KNIGHT_PST_BLACK[square64],
+            BISHOP => -BISHOP_PST_BLACK[square64],
+            ROOK => -ROOK_PST_BLACK[square64],
+            QUEEN => -QUEEN_PST_BLACK[square64],
+            KING => -KING_PST_MG_BLACK[square64],
+            _ => panic!("Unexpected piece {}", piece),
+        };
     }
-    score
 }
 
 pub fn get_material_score(piece: u8) -> i32 {
@@ -204,8 +190,13 @@ pub fn evaluate(position: &Position) -> i32 {
             continue;
         }
         let piece = position.board[square];
-        score += side * get_piece_material_score(piece);
+        let piece_type = get_piece_type(piece);
+        if piece_type == EMPTY {
+            continue;
+        }
+
+        score += get_piece_table_score(square, piece, piece_type);
+        score += get_piece_material_score(piece);
     }
-    score += side * get_piece_table_score(position);
-    score
+    score * side
 }
