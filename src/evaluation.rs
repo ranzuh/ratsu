@@ -135,53 +135,36 @@ fn get_piece_table_score(pos: &Position) -> i32 {
             continue;
         }
         let piece = pos.board[square];
+        let piece_type = get_piece_type(piece);
+        if piece_type == EMPTY {
+            continue
+        }
+
         let file = get_file(square);
         let rank = get_rank(square);
         let square64 = rank * 8 + file;
 
-        if get_piece_type(piece) == PAWN {
-            if get_piece_color(piece) == WHITE {
-                score += PAWN_PST[square64];
-            } else {
-                score -= PAWN_PST_BLACK[square64];
+        if get_piece_color(piece) == WHITE {
+            score += match piece_type {
+                PAWN => PAWN_PST[square64],
+                KNIGHT => KNIGHT_PST[square64],
+                BISHOP => BISHOP_PST[square64],
+                ROOK => ROOK_PST[square64],
+                QUEEN => QUEEN_PST[square64],
+                KING => KING_MG_PST[square64],
+                _ => panic!("Unexpected piece {}", piece)
+            }
+        } else {
+            score -= match piece_type {
+                PAWN => PAWN_PST_BLACK[square64],
+                KNIGHT => KNIGHT_PST_BLACK[square64],
+                BISHOP => BISHOP_PST_BLACK[square64],
+                ROOK => ROOK_PST_BLACK[square64],
+                QUEEN => QUEEN_PST_BLACK[square64],
+                KING => KING_PST_MG_BLACK[square64],
+                _ => panic!("Unexpected piece {}", piece)
             }
         }
-        if get_piece_type(piece) == KNIGHT {
-            if get_piece_color(piece) == WHITE {
-                score += KNIGHT_PST[square64];
-            } else {
-                score -= KNIGHT_PST_BLACK[square64];
-            }
-        }
-        if get_piece_type(piece) == BISHOP {
-            if get_piece_color(piece) == WHITE {
-                score += BISHOP_PST[square64];
-            } else {
-                score -= BISHOP_PST_BLACK[square64];
-            }
-        }
-        if get_piece_type(piece) == ROOK {
-            if get_piece_color(piece) == WHITE {
-                score += ROOK_PST[square64];
-            } else {
-                score -= ROOK_PST_BLACK[square64];
-            }
-        }
-        if get_piece_type(piece) == QUEEN {
-            if get_piece_color(piece) == WHITE {
-                score += QUEEN_PST[square64];
-            } else {
-                score -= QUEEN_PST_BLACK[square64];
-            }
-        }
-        if get_piece_type(piece) == KING {
-            if get_piece_color(piece) == WHITE {
-                score += KING_MG_PST[square64];
-            } else {
-                score -= KING_PST_MG_BLACK[square64];
-            }
-        }
-        //println!("{char}, {square}, file: {file}, rank: {rank}, square64: {square64}, score: {score}");
     }
     score
 }
