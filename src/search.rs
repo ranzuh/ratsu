@@ -79,7 +79,7 @@ fn quiescence(
     let mut moves = position.generate_tactical_moves();
 
     // Move ordering
-    order_moves_inplace(&position, &mut moves, ply, context);
+    order_moves_inplace(position, &mut moves, ply, context);
     for move_ in moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
@@ -137,7 +137,7 @@ fn alphabeta(
         }
     }
     // Move ordering
-    order_moves_inplace(&position, &mut moves, ply, context);
+    order_moves_inplace(position, &mut moves, ply, context);
     for move_ in moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
@@ -180,7 +180,7 @@ pub fn search(position: &mut Position, depth: u32, timer: Timer) -> SearchContex
     let mut context = SearchContext {
         prev_pv: PvLine::new(),
         node_count: 0,
-        timer: timer,
+        timer,
     };
     for d in 1..depth + 1 {
         let mut pv = PvLine::new();
@@ -190,12 +190,12 @@ pub fn search(position: &mut Position, depth: u32, timer: Timer) -> SearchContex
         let value = alphabeta(position, alpha, beta, d, ply, &mut pv, &mut context);
 
         if !context.timer.stopped {
-            context.prev_pv = pv.clone();
+            context.prev_pv = pv;
             let pv_string = pv
                 .moves
                 .iter()
                 .flatten() // filters out None and unwraps Some
-                .map(|m| get_move_string(m))
+                .map(get_move_string)
                 .collect::<Vec<_>>()
                 .join(" ");
             println!(

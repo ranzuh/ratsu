@@ -133,7 +133,7 @@ fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
     let square64 = rank * 8 + file;
 
     if get_piece_color(piece) == WHITE {
-        return match piece_type {
+        match piece_type {
             PAWN => PAWN_PST[square64],
             KNIGHT => KNIGHT_PST[square64],
             BISHOP => BISHOP_PST[square64],
@@ -141,9 +141,9 @@ fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
             QUEEN => QUEEN_PST[square64],
             KING => KING_MG_PST[square64],
             _ => panic!("Unexpected piece {}", piece),
-        };
+        }
     } else {
-        return match piece_type {
+        match piece_type {
             PAWN => -PAWN_PST_BLACK[square64],
             KNIGHT => -KNIGHT_PST_BLACK[square64],
             BISHOP => -BISHOP_PST_BLACK[square64],
@@ -151,7 +151,7 @@ fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
             QUEEN => -QUEEN_PST_BLACK[square64],
             KING => -KING_PST_MG_BLACK[square64],
             _ => panic!("Unexpected piece {}", piece),
-        };
+        }
     }
 }
 

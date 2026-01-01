@@ -72,15 +72,12 @@ pub fn get_square_string(square: usize) -> String {
 }
 
 pub fn get_move_string(move_: &Move) -> String {
-    let prom_piece_type = move_
-        .promoted_piece
-        .and_then(|piece| Some(get_piece_type(piece)));
-    let prom_str = match prom_piece_type {
+    let prom_str = match move_.promoted_piece.map(get_piece_type) {
         Some(KNIGHT) => "n",
         Some(BISHOP) => "b",
         Some(ROOK) => "r",
         Some(QUEEN) => "q",
-        Some(_other) => panic!("unexpected promotion piece {}", _other),
+        Some(other) => unreachable!("unexpected promotion piece: {}", other),
         None => "",
     };
 
@@ -250,78 +247,75 @@ fn generate_crawling_moves(
 
     if get_piece_type(piece) == KING && !only_tactical_moves {
         if position.is_white_turn {
-            if position.castling_rights[0] {
-                if position.board[square + 1] == EMPTY
-                    && position.board[square + 2] == EMPTY
-                    && !is_square_attacked(square, position)
-                    && !is_square_attacked(square + 1, position)
-                {
-                    moves.push(Move {
-                        from: square,
-                        to: square + 2,
-                        promoted_piece: None,
-                        is_capture: false,
-                        is_enpassant: false,
-                        is_double_pawn: false,
-                        is_castling: true,
-                    });
-                }
+            if position.castling_rights[0]
+                && position.board[square + 1] == EMPTY
+                && position.board[square + 2] == EMPTY
+                && !is_square_attacked(square, position)
+                && !is_square_attacked(square + 1, position)
+            {
+                moves.push(Move {
+                    from: square,
+                    to: square + 2,
+                    promoted_piece: None,
+                    is_capture: false,
+                    is_enpassant: false,
+                    is_double_pawn: false,
+                    is_castling: true,
+                });
             }
-            if position.castling_rights[1] {
-                if position.board[square - 1] == EMPTY
-                    && position.board[square - 2] == EMPTY
-                    && position.board[square - 3] == EMPTY
-                    && !is_square_attacked(square, position)
-                    && !is_square_attacked(square - 1, position)
-                {
-                    moves.push(Move {
-                        from: square,
-                        to: square - 2,
-                        promoted_piece: None,
-                        is_capture: false,
-                        is_enpassant: false,
-                        is_double_pawn: false,
-                        is_castling: true,
-                    });
-                }
+            if position.castling_rights[1]
+                && position.board[square - 1] == EMPTY
+                && position.board[square - 2] == EMPTY
+                && position.board[square - 3] == EMPTY
+                && !is_square_attacked(square, position)
+                && !is_square_attacked(square - 1, position)
+            {
+                moves.push(Move {
+                    from: square,
+                    to: square - 2,
+                    promoted_piece: None,
+                    is_capture: false,
+                    is_enpassant: false,
+                    is_double_pawn: false,
+                    is_castling: true,
+                });
             }
         }
 
         if !position.is_white_turn && (position.castling_rights[2] || position.castling_rights[3]) {
-            if position.castling_rights[2] {
-                if position.board[square + 1] == EMPTY
-                    && position.board[square + 2] == EMPTY
-                    && !is_square_attacked(square, position)
-                    && !is_square_attacked(square + 1, position)
-                {
-                    moves.push(Move {
-                        from: square,
-                        to: square + 2,
-                        promoted_piece: None,
-                        is_capture: false,
-                        is_enpassant: false,
-                        is_double_pawn: false,
-                        is_castling: true,
-                    });
-                }
+            if position.castling_rights[2]
+                && position.board[square + 1] == EMPTY
+                && position.board[square + 2] == EMPTY
+                && !is_square_attacked(square, position)
+                && !is_square_attacked(square + 1, position)
+            {
+                moves.push(Move {
+                    from: square,
+                    to: square + 2,
+                    promoted_piece: None,
+                    is_capture: false,
+                    is_enpassant: false,
+                    is_double_pawn: false,
+                    is_castling: true,
+                });
             }
-            if position.castling_rights[3] {
-                if position.board[square - 1] == EMPTY
-                    && position.board[square - 2] == EMPTY
-                    && position.board[square - 3] == EMPTY
-                    && !is_square_attacked(square, position)
-                    && !is_square_attacked(square - 1, position)
-                {
-                    moves.push(Move {
-                        from: square,
-                        to: square - 2,
-                        promoted_piece: None,
-                        is_capture: false,
-                        is_enpassant: false,
-                        is_double_pawn: false,
-                        is_castling: true,
-                    });
-                }
+
+            if position.castling_rights[3]
+                && position.board[square - 1] == EMPTY
+                && position.board[square - 2] == EMPTY
+                && position.board[square - 3] == EMPTY
+                && !is_square_attacked(square, position)
+                && !is_square_attacked(square - 1, position)
+            {
+                moves.push(Move {
+                    from: square,
+                    to: square - 2,
+                    promoted_piece: None,
+                    is_capture: false,
+                    is_enpassant: false,
+                    is_double_pawn: false,
+                    is_castling: true,
+                });
             }
         }
     }

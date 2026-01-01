@@ -6,7 +6,7 @@ use crate::{
     search::SearchContext,
 };
 
-pub fn order_moves_inplace(pos: &Position, moves: &mut Vec<Move>, ply: u32, info: &SearchContext) {
+pub fn order_moves_inplace(pos: &Position, moves: &mut [Move], ply: u32, info: &SearchContext) {
     // Check if we have a PV move at this ply
     let pv_move = if ply < info.prev_pv.count as u32 {
         info.prev_pv.moves[ply as usize]

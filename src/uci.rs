@@ -16,14 +16,14 @@ use crate::{
 fn read_line() -> String {
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
-        Ok(n) => return input,
+        Ok(_) => input,
         Err(error) => panic!("error: {error}"),
     }
 }
 
 fn parse_move(move_string: &str, position: &mut Position) -> Move {
     // e2e4 e7e5 g1f3 b8c6 f1b5 c2c1q
-    let from_file = move_string.chars().nth(0).unwrap() as usize;
+    let from_file = move_string.chars().next().unwrap() as usize;
     let from_rank = move_string.chars().nth(1).unwrap().to_digit(10).unwrap() as usize;
     let to_file = move_string.chars().nth(2).unwrap() as usize;
     let to_rank = move_string.chars().nth(3).unwrap().to_digit(10).unwrap() as usize;
@@ -46,10 +46,10 @@ fn parse_move(move_string: &str, position: &mut Position) -> Move {
     let to_square = (to_file - 97) + ((8 - to_rank) * 16);
 
     let moves = position.generate_legal_moves();
-    for move_ in &moves {
+    for move_ in moves {
         if move_.from == from_square && move_.to == to_square && move_.promoted_piece == prom_piece
         {
-            return move_.clone();
+            return move_
         }
     }
     // return illegal move for now if no move is matched
@@ -64,14 +64,14 @@ fn parse_move(move_string: &str, position: &mut Position) -> Move {
     }
 }
 
-fn handle_position(input: &String, position: &mut Position) {
+fn handle_position(input: &str, position: &mut Position) {
     // > position startpos
     // > position startpos moves e2e4 e7e5 g1f3 b8c6 f1b5
     // > position fen 8/1B6/8/5p2/8/8/5Qrq/1K1R2bk w - - 0 1
     // > position fen 8/3P3k/n2K3p/2p3n1/1b4N1/2p1p1P1/8/3B4 w - - 0 1 moves g4f6 h7g7 f6h5 g7g6 d1c2
     if input.contains("fen") {
         let fen_part = input.strip_prefix("position fen ").unwrap();
-        *position = Position::from_fen(&fen_part);
+        *position = Position::from_fen(fen_part);
     } else if input.contains("startpos") {
         *position = Position::from_fen(START_POSITION_FEN);
     }
@@ -89,7 +89,7 @@ fn handle_position(input: &String, position: &mut Position) {
     }
 }
 
-fn handle_go(input: &String, position: &mut Position) {
+fn handle_go(input: &str, position: &mut Position) {
     // default depth
     let mut depth: u32 = 10;
 
