@@ -1,5 +1,5 @@
 use crate::{
-    movegen::{get_file, get_rank, is_off_board},
+    movegen::{BOARD_SQUARES, get_file, get_rank},
     piece::{
         BISHOP, BLACK, EMPTY, KING, KNIGHT, PAWN, QUEEN, ROOK, WHITE, get_piece_color,
         get_piece_type,
@@ -185,10 +185,7 @@ pub fn evaluate(position: &Position) -> i32 {
         true => 1,
         false => -1,
     };
-    for square in 0..128 {
-        if is_off_board(square) {
-            continue;
-        }
+    for square in BOARD_SQUARES {
         let piece = position.board[square];
         let piece_type = get_piece_type(piece);
         if piece_type == EMPTY {

@@ -32,6 +32,18 @@ const BISHOP_MOVES: &[isize] = &[N + E, E + S, S + W, W + N];
 const ROOK_MOVES: &[isize] = &[N, E, S, W];
 const QUEEN_KING_MOVES: &[isize] = &[N, N + E, E, E + S, S, S + W, W, W + N];
 
+pub const BOARD_SQUARES: [usize; 64] = {
+    let mut squares = [0usize; 64];
+    let mut i = 0;
+    while i < 64 {
+        let rank = i / 8;
+        let file = i % 8;
+        squares[i] = 16 * rank + file;
+        i += 1;
+    }
+    squares
+};
+
 fn get_piece_move_patterns(piece: u8) -> &'static [isize] {
     match get_piece_type(piece) {
         PAWN => PAWN_MOVES,
@@ -478,10 +490,7 @@ fn generate_pawn_moves(
 pub fn generate_pseudo_moves(position: &Position, only_tactical_moves: bool) -> Vec<Move> {
     let mut moves: Vec<Move> = Vec::with_capacity(100);
 
-    for square in 0..128 {
-        if is_off_board(square) {
-            continue;
-        }
+    for square in BOARD_SQUARES {
         let piece = position.board[square];
         let side_to_move = if position.is_white_turn { WHITE } else { BLACK };
         if get_piece_color(piece) != side_to_move {
@@ -503,6 +512,10 @@ pub fn generate_pseudo_moves(position: &Position, only_tactical_moves: bool) -> 
 }
 
 pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
+    // TODO: Optimize move-lists
+    // Currently creates new vectors in pseudo_moves and again in legal_moves
+    // Maybe generate in pseudo moves and swap_remove in legal moves
+    // I could use while-loop and swap_remove illegal moves after unmake
     let pseudo_moves = generate_pseudo_moves(position, false);
     let mut legal_moves: Vec<Move> = Vec::with_capacity(100);
     for move_ in &pseudo_moves {

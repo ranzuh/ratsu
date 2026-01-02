@@ -1,4 +1,4 @@
-use crate::movegen::{Move, get_square_string, is_off_board};
+use crate::movegen::{BOARD_SQUARES, Move, get_square_string, is_off_board};
 use crate::piece::*;
 
 pub struct Position {
@@ -27,10 +27,7 @@ impl Position {
         print!(" EP square {}", ep_square);
 
         let mut rank = 8;
-        for i in 0..128 {
-            if is_off_board(i) {
-                continue;
-            }
+        for i in BOARD_SQUARES {
             if i % 16 == 0 {
                 print!("\n{} ", rank);
                 rank -= 1;
