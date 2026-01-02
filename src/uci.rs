@@ -49,7 +49,7 @@ fn parse_move(move_string: &str, position: &mut Position) -> Move {
     for move_ in moves {
         if move_.from == from_square && move_.to == to_square && move_.promoted_piece == prom_piece
         {
-            return move_
+            return move_;
         }
     }
     // return illegal move for now if no move is matched
@@ -64,7 +64,7 @@ fn parse_move(move_string: &str, position: &mut Position) -> Move {
     }
 }
 
-fn handle_position(input: &str, position: &mut Position) {
+pub fn handle_position(input: &str, position: &mut Position) {
     // > position startpos
     // > position startpos moves e2e4 e7e5 g1f3 b8c6 f1b5
     // > position fen 8/1B6/8/5p2/8/8/5Qrq/1K1R2bk w - - 0 1
@@ -81,11 +81,11 @@ fn handle_position(input: &str, position: &mut Position) {
         let moves_part = &input[index + 6..];
         for move_string in moves_part.split(" ") {
             // TODO: Needs to parse these into Moves that get made in the position
-            println!("{move_string}");
+            //println!("{move_string}");
             let move_ = parse_move(move_string, position);
             position.make_move(&move_);
         }
-        println!("{moves_part}");
+        //println!("{moves_part}");
     }
 }
 

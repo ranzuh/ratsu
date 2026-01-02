@@ -1,10 +1,10 @@
 use crate::{
-    movegen::{BOARD_SQUARES, get_file, get_rank},
+    movegen::BOARD_SQUARES,
     piece::{
         BISHOP, BLACK, EMPTY, KING, KNIGHT, PAWN, QUEEN, ROOK, WHITE, get_piece_color,
         get_piece_type,
     },
-    position::Position,
+    position::{Position, get_square_in_64},
 };
 
 const MATERIAL_PAWN: i32 = 100;
@@ -128,9 +128,7 @@ const KING_PST_MG_BLACK: [i32; 64] = flip_board(&KING_MG_PST);
 const KING_PST_EG_BLACK: [i32; 64] = flip_board(&KING_EG_PST);
 
 fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
-    let file = get_file(square);
-    let rank = get_rank(square);
-    let square64 = rank * 8 + file;
+    let square64 = get_square_in_64(square);
 
     if get_piece_color(piece) == WHITE {
         match piece_type {

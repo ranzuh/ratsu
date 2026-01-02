@@ -85,6 +85,7 @@ fn quiescence(
         let original_castling_rights = position.castling_rights;
         let original_king_squares = position.king_squares;
         let original_ep_square = position.enpassant_square;
+        let original_hash = position.hash;
         position.make_move(&move_);
         context.node_count += 1;
         let value = -quiescence(position, -beta, -alpha, ply + 1, context);
@@ -95,6 +96,7 @@ fn quiescence(
             original_king_squares,
             original_ep_square,
         );
+        position.hash = original_hash;
         if value >= beta {
             return beta; // fail hard beta-cutoff
         }
@@ -143,6 +145,7 @@ fn alphabeta(
         let original_castling_rights = position.castling_rights;
         let original_king_squares = position.king_squares;
         let original_ep_square = position.enpassant_square;
+        let original_hash = position.hash;
         position.make_move(&move_);
         context.node_count += 1;
         let value = -alphabeta(
@@ -161,6 +164,7 @@ fn alphabeta(
             original_king_squares,
             original_ep_square,
         );
+        position.hash = original_hash;
         if value >= beta {
             return beta; // fail hard beta-cutoff
         }

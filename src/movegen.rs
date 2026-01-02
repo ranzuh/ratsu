@@ -523,6 +523,7 @@ pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
         let original_castling_rights = position.castling_rights;
         let original_king_squares = position.king_squares;
         let original_ep_square = position.enpassant_square;
+        let original_hash = position.hash;
         position.make_move(move_); // make move
         position.is_white_turn = !position.is_white_turn; // consider from same side before move
         let idx = match position.is_white_turn {
@@ -540,6 +541,7 @@ pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
             original_king_squares,
             original_ep_square,
         );
+        position.hash = original_hash;
     }
     legal_moves
 }

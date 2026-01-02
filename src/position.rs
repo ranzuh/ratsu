@@ -2,6 +2,10 @@ use crate::hash::ZobristKeys;
 use crate::movegen::{BOARD_SQUARES, Move, get_file, get_rank, get_square_string, is_off_board};
 use crate::piece::*;
 
+pub fn get_square_in_64(square_in_128: usize) -> usize {
+    get_rank(square_in_128) * 8 + get_file(square_in_128)
+}
+
 pub struct Position {
     pub board: [u8; 128],
     pub is_white_turn: bool,
@@ -56,7 +60,7 @@ impl Position {
         let side_to_move = fen_parts[1];
         let castling_rights = fen_parts[2];
         let ep_square = fen_parts[3];
-        
+
         if ep_square != "-" {
             let ep_file = ep_square.chars().next().unwrap() as usize;
             let ep_rank = ep_square.chars().nth(1).unwrap().to_digit(10).unwrap() as usize;
@@ -99,13 +103,17 @@ impl Position {
         pos
     }
 
+    fn piece_hash(&self, square: usize, piece: u8) -> u64 {
+        let square64 = get_square_in_64(square);
+        self.keys.piece_keys[square64][piece as usize]
+    }
+
     fn generate_hash(&mut self) {
         // Hash pieces
         for square in BOARD_SQUARES {
             let piece = self.board[square];
             if get_piece_type(piece) != EMPTY {
-                let square64 = (get_rank(square) * 8 + get_file(square)) as usize;
-                self.hash ^= self.keys.piece_keys[square64][piece as usize];
+                self.hash ^= self.piece_hash(square, piece);
             }
         }
 
@@ -154,26 +162,42 @@ impl Position {
             118 => {
                 self.board[119] = EMPTY;
                 self.board[117] = WHITE | ROOK;
+                self.hash ^= self.piece_hash(119, WHITE | ROOK);
+                self.hash ^= self.piece_hash(117, WHITE | ROOK);
                 self.castling_rights[0] = false;
                 self.castling_rights[1] = false;
+                self.hash ^= self.keys.castling_rights_keys[0];
+                self.hash ^= self.keys.castling_rights_keys[1];
             }
             114 => {
                 self.board[112] = EMPTY;
                 self.board[115] = WHITE | ROOK;
+                self.hash ^= self.piece_hash(112, WHITE | ROOK);
+                self.hash ^= self.piece_hash(115, WHITE | ROOK);
                 self.castling_rights[0] = false;
                 self.castling_rights[1] = false;
+                self.hash ^= self.keys.castling_rights_keys[0];
+                self.hash ^= self.keys.castling_rights_keys[1];
             }
             6 => {
                 self.board[7] = EMPTY;
                 self.board[5] = BLACK | ROOK;
+                self.hash ^= self.piece_hash(7, BLACK | ROOK);
+                self.hash ^= self.piece_hash(5, BLACK | ROOK);
                 self.castling_rights[2] = false;
                 self.castling_rights[3] = false;
+                self.hash ^= self.keys.castling_rights_keys[2];
+                self.hash ^= self.keys.castling_rights_keys[3];
             }
             2 => {
                 self.board[0] = EMPTY;
                 self.board[3] = BLACK | ROOK;
+                self.hash ^= self.piece_hash(0, BLACK | ROOK);
+                self.hash ^= self.piece_hash(3, BLACK | ROOK);
                 self.castling_rights[2] = false;
                 self.castling_rights[3] = false;
+                self.hash ^= self.keys.castling_rights_keys[2];
+                self.hash ^= self.keys.castling_rights_keys[3];
             }
             _ => panic!("invalid square to move to"),
         }
@@ -213,10 +237,14 @@ impl Position {
                     true => {
                         self.castling_rights[0] = false;
                         self.castling_rights[1] = false;
+                        self.hash ^= self.keys.castling_rights_keys[0];
+                        self.hash ^= self.keys.castling_rights_keys[1];
                     }
                     false => {
                         self.castling_rights[2] = false;
                         self.castling_rights[3] = false;
+                        self.hash ^= self.keys.castling_rights_keys[2];
+                        self.hash ^= self.keys.castling_rights_keys[3];
                     }
                 }
             }
@@ -224,12 +252,16 @@ impl Position {
         // lose castling rights when rook moves or gets captured
         if move_.from == 119 || move_.to == 119 {
             self.castling_rights[0] = false;
+            self.hash ^= self.keys.castling_rights_keys[0];
         } else if move_.from == 112 || move_.to == 112 {
             self.castling_rights[1] = false;
+            self.hash ^= self.keys.castling_rights_keys[1];
         } else if move_.from == 7 || move_.to == 7 {
             self.castling_rights[2] = false;
+            self.hash ^= self.keys.castling_rights_keys[2];
         } else if move_.from == 0 || move_.to == 0 {
             self.castling_rights[3] = false;
+            self.hash ^= self.keys.castling_rights_keys[3];
         }
 
         if move_.is_castling {
@@ -252,26 +284,34 @@ impl Position {
                 let target_piece = self.board[square_to_check];
                 if self.is_white_turn && target_piece == BLACK | PAWN {
                     self.enpassant_square = Some(move_.to + 16);
+                    self.hash ^= self.keys.enpassant_file_keys[get_file(move_.to + 16)]
                 } else if !self.is_white_turn && target_piece == WHITE | PAWN {
                     self.enpassant_square = Some(move_.to - 16);
+                    self.hash ^= self.keys.enpassant_file_keys[get_file(move_.to - 16)]
                 }
             }
         }
         if move_.is_enpassant {
             if self.is_white_turn {
                 self.board[move_.to + 16] = EMPTY;
+                self.hash ^= self.piece_hash(move_.to + 16, BLACK | PAWN);
             } else {
                 self.board[move_.to - 16] = EMPTY;
+                self.hash ^= self.piece_hash(move_.to - 16, WHITE | PAWN);
             }
         }
         if move_.promoted_piece.is_some() {
             self.board[move_.to] = move_.promoted_piece.unwrap();
+            self.hash ^= self.piece_hash(move_.to, move_.promoted_piece.unwrap());
         } else {
             self.board[move_.to] = piece;
+            self.hash ^= self.piece_hash(move_.to, piece);
         }
 
         self.board[move_.from] = EMPTY;
+        self.hash ^= self.piece_hash(move_.from, piece);
         self.is_white_turn = !self.is_white_turn;
+        self.hash ^= self.keys.black_to_move_key;
     }
 
     pub fn unmake_move(
