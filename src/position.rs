@@ -55,6 +55,14 @@ impl Position {
         let piece_placement = fen_parts[0];
         let side_to_move = fen_parts[1];
         let castling_rights = fen_parts[2];
+        let ep_square = fen_parts[3];
+        
+        if ep_square != "-" {
+            let ep_file = ep_square.chars().next().unwrap() as usize;
+            let ep_rank = ep_square.chars().nth(1).unwrap().to_digit(10).unwrap() as usize;
+            let ep_square_128 = (ep_file - 97) + ((8 - ep_rank) * 16);
+            pos.enpassant_square = Some(ep_square_128);
+        }
 
         pos.is_white_turn = side_to_move == "w";
 
