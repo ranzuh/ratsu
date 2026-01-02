@@ -1,4 +1,5 @@
-use crate::movegen::{BOARD_SQUARES, Move, get_square_string, is_off_board};
+use crate::hash::ZobristKeys;
+use crate::movegen::{BOARD_SQUARES, Move, get_file, get_rank, get_square_string, is_off_board};
 use crate::piece::*;
 
 pub struct Position {
@@ -8,6 +9,8 @@ pub struct Position {
     // white kingside, white queenside, black kingside, black queenside
     pub castling_rights: [bool; 4],
     pub king_squares: [usize; 2], // white, black
+    pub keys: ZobristKeys,
+    pub hash: u64,
 }
 
 impl Position {
@@ -44,6 +47,8 @@ impl Position {
             enpassant_square: None,
             castling_rights: [false, false, false, false],
             king_squares: [127, 127], // we dont know yet
+            keys: ZobristKeys::new(),
+            hash: 0u64, // not generated yet
         };
         let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
         // currently using only the piece placement, later use side, castling, ep, etc.
@@ -82,7 +87,37 @@ impl Position {
                 _ => panic!("Unexpected castling rights char: {}", c),
             }
         }
+        pos.generate_hash();
         pos
+    }
+
+    fn generate_hash(&mut self) {
+        // Hash pieces
+        for square in BOARD_SQUARES {
+            let piece = self.board[square];
+            if get_piece_type(piece) != EMPTY {
+                let square64 = (get_rank(square) * 8 + get_file(square)) as usize;
+                self.hash ^= self.keys.piece_keys[square64][piece as usize];
+            }
+        }
+
+        // Hash side to move
+        if !self.is_white_turn {
+            self.hash ^= self.keys.black_to_move_key;
+        }
+
+        // Hash en passant file (if any)
+        if self.enpassant_square.is_some() {
+            let ep_file = get_file(self.enpassant_square.unwrap());
+            self.hash ^= self.keys.enpassant_file_keys[ep_file as usize];
+        }
+
+        // Hash castling rights
+        for (idx, &has_right) in self.castling_rights.iter().enumerate() {
+            if has_right {
+                self.hash ^= self.keys.castling_rights_keys[idx];
+            }
+        }
     }
 
     #[allow(dead_code)]

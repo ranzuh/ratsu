@@ -1,4 +1,5 @@
 pub mod evaluation;
+pub mod hash;
 pub mod movegen;
 pub mod moveordering;
 pub mod perft;
