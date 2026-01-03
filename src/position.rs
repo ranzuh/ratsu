@@ -104,6 +104,10 @@ impl Position {
     }
 
     fn piece_hash(&self, square: usize, piece: u8) -> u64 {
+        // empty squares don't change hash
+        if get_piece_type(piece) == EMPTY {
+            return 0;
+        }
         let square64 = get_square_in_64(square);
         self.keys.piece_keys[square64][piece as usize]
     }
@@ -123,9 +127,9 @@ impl Position {
         }
 
         // Hash en passant file (if any)
-        if self.enpassant_square.is_some() {
-            let ep_file = get_file(self.enpassant_square.unwrap());
-            self.hash ^= self.keys.enpassant_file_keys[ep_file as usize];
+        if let Some(ep_square) = self.enpassant_square {
+            let ep_file = get_file(ep_square);
+            self.hash ^= self.keys.enpassant_file_keys[ep_file];
         }
 
         // Hash castling rights
@@ -158,46 +162,31 @@ impl Position {
     }
 
     fn handle_castling_move(&mut self, move_: &Move) {
+        // castling rights removal is handled when king moves
         match move_.to {
             118 => {
                 self.board[119] = EMPTY;
                 self.board[117] = WHITE | ROOK;
                 self.hash ^= self.piece_hash(119, WHITE | ROOK);
                 self.hash ^= self.piece_hash(117, WHITE | ROOK);
-                self.castling_rights[0] = false;
-                self.castling_rights[1] = false;
-                self.hash ^= self.keys.castling_rights_keys[0];
-                self.hash ^= self.keys.castling_rights_keys[1];
             }
             114 => {
                 self.board[112] = EMPTY;
                 self.board[115] = WHITE | ROOK;
                 self.hash ^= self.piece_hash(112, WHITE | ROOK);
                 self.hash ^= self.piece_hash(115, WHITE | ROOK);
-                self.castling_rights[0] = false;
-                self.castling_rights[1] = false;
-                self.hash ^= self.keys.castling_rights_keys[0];
-                self.hash ^= self.keys.castling_rights_keys[1];
             }
             6 => {
                 self.board[7] = EMPTY;
                 self.board[5] = BLACK | ROOK;
                 self.hash ^= self.piece_hash(7, BLACK | ROOK);
                 self.hash ^= self.piece_hash(5, BLACK | ROOK);
-                self.castling_rights[2] = false;
-                self.castling_rights[3] = false;
-                self.hash ^= self.keys.castling_rights_keys[2];
-                self.hash ^= self.keys.castling_rights_keys[3];
             }
             2 => {
                 self.board[0] = EMPTY;
                 self.board[3] = BLACK | ROOK;
                 self.hash ^= self.piece_hash(0, BLACK | ROOK);
                 self.hash ^= self.piece_hash(3, BLACK | ROOK);
-                self.castling_rights[2] = false;
-                self.castling_rights[3] = false;
-                self.hash ^= self.keys.castling_rights_keys[2];
-                self.hash ^= self.keys.castling_rights_keys[3];
             }
             _ => panic!("invalid square to move to"),
         }
@@ -228,6 +217,10 @@ impl Position {
     pub fn make_move(&mut self, move_: &Move) {
         let piece = self.board[move_.from];
         let piece_type = get_piece_type(piece);
+        // remove previous en passant square from hash
+        if let Some(ep_square) = self.enpassant_square {
+            self.hash ^= self.keys.enpassant_file_keys[get_file(ep_square)];
+        }
         self.enpassant_square = None;
 
         if self.side_has_castling_rights() {
@@ -250,16 +243,16 @@ impl Position {
             }
         }
         // lose castling rights when rook moves or gets captured
-        if move_.from == 119 || move_.to == 119 {
+        if self.castling_rights[0] && (move_.from == 119 || move_.to == 119) {
             self.castling_rights[0] = false;
             self.hash ^= self.keys.castling_rights_keys[0];
-        } else if move_.from == 112 || move_.to == 112 {
+        } else if self.castling_rights[1] && (move_.from == 112 || move_.to == 112) {
             self.castling_rights[1] = false;
             self.hash ^= self.keys.castling_rights_keys[1];
-        } else if move_.from == 7 || move_.to == 7 {
+        } else if self.castling_rights[2] && (move_.from == 7 || move_.to == 7) {
             self.castling_rights[2] = false;
             self.hash ^= self.keys.castling_rights_keys[2];
-        } else if move_.from == 0 || move_.to == 0 {
+        } else if self.castling_rights[3] && (move_.from == 0 || move_.to == 0) {
             self.castling_rights[3] = false;
             self.hash ^= self.keys.castling_rights_keys[3];
         }
@@ -300,10 +293,14 @@ impl Position {
                 self.hash ^= self.piece_hash(move_.to - 16, WHITE | PAWN);
             }
         }
-        if move_.promoted_piece.is_some() {
-            self.board[move_.to] = move_.promoted_piece.unwrap();
-            self.hash ^= self.piece_hash(move_.to, move_.promoted_piece.unwrap());
+        if let Some(prom_piece) = move_.promoted_piece {
+            self.board[move_.to] = prom_piece;
+            self.hash ^= self.piece_hash(move_.to, prom_piece);
         } else {
+            if move_.is_capture {
+                let target_piece = self.board[move_.to];
+                self.hash ^= self.piece_hash(move_.to, target_piece);
+            }
             self.board[move_.to] = piece;
             self.hash ^= self.piece_hash(move_.to, piece);
         }

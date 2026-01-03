@@ -52,16 +52,10 @@ fn parse_move(move_string: &str, position: &mut Position) -> Move {
             return move_;
         }
     }
-    // return illegal move for now if no move is matched
-    Move {
-        from: 0x88,
-        to: 0x88,
-        promoted_piece: None,
-        is_capture: false,
-        is_enpassant: false,
-        is_double_pawn: false,
-        is_castling: false,
-    }
+    panic!(
+        "Parsed move is not matched to any legal move: from: {} to: {}",
+        from_square, to_square
+    );
 }
 
 pub fn handle_position(input: &str, position: &mut Position) {
@@ -76,12 +70,9 @@ pub fn handle_position(input: &str, position: &mut Position) {
         *position = Position::from_fen(START_POSITION_FEN);
     }
     if input.contains("moves") {
-        *position = Position::from_fen(START_POSITION_FEN);
         let index = input.find("moves").unwrap();
         let moves_part = &input[index + 6..];
         for move_string in moves_part.split(" ") {
-            // TODO: Needs to parse these into Moves that get made in the position
-            //println!("{move_string}");
             let move_ = parse_move(move_string, position);
             position.make_move(&move_);
         }
@@ -93,7 +84,7 @@ fn handle_go(input: &str, position: &mut Position) {
     // default depth
     let mut depth: u32 = 10;
 
-    let mut movetime: u64 = 0;
+    let movetime: u64;
     let mut base: u64 = 0;
     let mut increment: u64 = 0;
 
