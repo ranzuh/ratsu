@@ -119,6 +119,11 @@ fn alphabeta(
     if context.timer.should_stop(context.node_count) {
         return 0;
     }
+
+    if ply > 0 && position.is_repetition() {
+        return 0;
+    }
+
     // leaf node
     if depth == 0 {
         pv.clear();
@@ -148,6 +153,9 @@ fn alphabeta(
         let original_hash = position.hash;
         position.make_move(&move_);
         context.node_count += 1;
+        // do not store to first rep index
+        position.repetition_index += 1;
+        position.repetition_stack[position.repetition_index] = position.hash;
         let value = -alphabeta(
             position,
             -beta,
@@ -165,6 +173,7 @@ fn alphabeta(
             original_ep_square,
         );
         position.hash = original_hash;
+        position.repetition_index -= 1;
         if value >= beta {
             return beta; // fail hard beta-cutoff
         }

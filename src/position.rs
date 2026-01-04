@@ -15,6 +15,8 @@ pub struct Position {
     pub king_squares: [usize; 2], // white, black
     pub keys: ZobristKeys,
     pub hash: u64,
+    pub repetition_stack: [u64; 512],
+    pub repetition_index: usize,
 }
 
 impl Position {
@@ -44,6 +46,15 @@ impl Position {
         println!("\n  a b c d e f g h");
     }
 
+    pub fn is_repetition(&self) -> bool {
+        for i in 0..self.repetition_index {
+            if self.repetition_stack[i] == self.hash {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn from_fen(fen_string: &str) -> Self {
         let mut pos = Position {
             board: [EMPTY; 128],
@@ -53,6 +64,8 @@ impl Position {
             king_squares: [127, 127], // we dont know yet
             keys: ZobristKeys::new(),
             hash: 0u64, // not generated yet
+            repetition_stack: [0u64; 512],
+            repetition_index: 0,
         };
         let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
         // currently using only the piece placement, later use side, castling, ep, etc.

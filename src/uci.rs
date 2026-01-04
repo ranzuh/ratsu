@@ -69,12 +69,16 @@ pub fn handle_position(input: &str, position: &mut Position) {
     } else if input.contains("startpos") {
         *position = Position::from_fen(START_POSITION_FEN);
     }
+    position.repetition_index += 1;
+    position.repetition_stack[position.repetition_index] = position.hash;
     if input.contains("moves") {
         let index = input.find("moves").unwrap();
         let moves_part = &input[index + 6..];
         for move_string in moves_part.split(" ") {
             let move_ = parse_move(move_string, position);
             position.make_move(&move_);
+            position.repetition_index += 1;
+            position.repetition_stack[position.repetition_index] = position.hash;
         }
         //println!("{moves_part}");
     }
