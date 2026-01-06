@@ -1,5 +1,5 @@
 use crate::{
-    movegen::BOARD_SQUARES,
+    movegen::{get_file, get_rank},
     piece::{
         BISHOP, BLACK, EMPTY, KING, KNIGHT, PAWN, QUEEN, ROOK, WHITE, get_piece_color,
         get_piece_type,
@@ -100,6 +100,81 @@ const KING_EG_PST: [i32; 64] = [
     -50,-30,-30,-30,-30,-30,-30,-50
 ];
 
+const DOUBLED_PAWN_PENALTY: i32 = 10;
+const ISOLATED_PAWN_PENALTY: i32 = 20;
+const BACKWARDS_PAWN_PENALTY: i32 = 8;
+const PASSED_PAWN_BONUS: i32 = 20;
+
+fn init_pawn_ranks(pos: &Position) -> ([u8; 10], [u8; 10]) {
+    let mut white_pawn_ranks = [0u8; 10];
+    let mut black_pawn_ranks = [7u8; 10];
+
+    for rank in 1..7 {
+        for file in 0..8 {
+            let square = rank * 16 + file;
+            let piece = pos.board[square];
+            if get_piece_type(piece) == PAWN {
+                let rank = get_rank(square) as u8;
+                let pawn_file_index = get_file(square) + 1;
+                let is_white = get_piece_color(piece) == WHITE;
+                if is_white && white_pawn_ranks[pawn_file_index] < rank {
+                    white_pawn_ranks[pawn_file_index] = rank
+                } else if !is_white && black_pawn_ranks[pawn_file_index] > rank {
+                    black_pawn_ranks[pawn_file_index] = rank
+                }
+            }
+        }
+    }
+    (white_pawn_ranks, black_pawn_ranks)
+}
+
+fn get_pawn_structure_score(
+    white_pawn_ranks: &[u8; 10],
+    black_pawn_ranks: &[u8; 10],
+    piece: u8,
+    rank: u8,
+    pawn_file: usize,
+) -> i32 {
+    let mut score = 0;
+    let left_file = pawn_file - 1;
+    let right_file = pawn_file + 1;
+    if get_piece_color(piece) == WHITE {
+        if white_pawn_ranks[pawn_file] > rank {
+            score -= DOUBLED_PAWN_PENALTY;
+        }
+
+        if white_pawn_ranks[left_file] == 0 && white_pawn_ranks[right_file] == 0 {
+            score -= ISOLATED_PAWN_PENALTY;
+        } else if rank > white_pawn_ranks[left_file] && rank > white_pawn_ranks[right_file] {
+            score -= BACKWARDS_PAWN_PENALTY;
+        }
+
+        if rank <= black_pawn_ranks[left_file]
+            && rank <= black_pawn_ranks[pawn_file]
+            && rank <= black_pawn_ranks[right_file]
+        {
+            score += (7 - rank as i32) * PASSED_PAWN_BONUS;
+        }
+    } else {
+        if black_pawn_ranks[pawn_file] < rank {
+            score += DOUBLED_PAWN_PENALTY;
+        }
+        if black_pawn_ranks[left_file] == 7 && black_pawn_ranks[right_file] == 7 {
+            score += ISOLATED_PAWN_PENALTY;
+        } else if rank < black_pawn_ranks[left_file] && rank < black_pawn_ranks[right_file] {
+            score += BACKWARDS_PAWN_PENALTY;
+        }
+
+        if rank >= white_pawn_ranks[left_file]
+            && rank >= white_pawn_ranks[pawn_file]
+            && rank >= white_pawn_ranks[right_file]
+        {
+            score -= rank as i32 * PASSED_PAWN_BONUS
+        }
+    }
+    score
+}
+
 const fn flip_board<T: Copy>(board: &[T; 64]) -> [T; 64] {
     let mut flipped = *board;
     let mut rank = 0;
@@ -179,19 +254,30 @@ fn get_piece_material_score(piece: u8) -> i32 {
 
 pub fn evaluate(position: &Position) -> i32 {
     let mut score = 0;
-    let side = match position.is_white_turn {
-        true => 1,
-        false => -1,
-    };
-    for square in BOARD_SQUARES {
-        let piece = position.board[square];
-        let piece_type = get_piece_type(piece);
-        if piece_type == EMPTY {
-            continue;
-        }
+    let side = if position.is_white_turn { 1 } else { -1 };
+    let (white_pawn_ranks, black_pawn_ranks) = init_pawn_ranks(position);
 
-        score += get_piece_table_score(square, piece, piece_type);
-        score += get_piece_material_score(piece);
+    for rank in 0..8 {
+        for file in 0..8 {
+            let square = rank * 16 + file;
+            let piece = position.board[square];
+            let piece_type = get_piece_type(piece);
+            if piece_type == EMPTY {
+                continue;
+            }
+
+            score += get_piece_table_score(square, piece, piece_type);
+            score += get_piece_material_score(piece);
+            if piece_type == PAWN {
+                score += get_pawn_structure_score(
+                    &white_pawn_ranks,
+                    &black_pawn_ranks,
+                    piece,
+                    rank as u8,
+                    file + 1,
+                );
+            }
+        }
     }
     score * side
 }
