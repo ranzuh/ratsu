@@ -8,10 +8,10 @@ use crate::{
 };
 
 const MATERIAL_PAWN: i32 = 100;
-const MATERIAL_KNIGHT: i32 = 320;
-const MATERIAL_BISHOP: i32 = 330;
-const MATERIAL_ROOK: i32 = 500;
-const MATERIAL_QUEEN: i32 = 900;
+const MATERIAL_KNIGHT: i32 = 350;
+const MATERIAL_BISHOP: i32 = 350;
+const MATERIAL_ROOK: i32 = 525;
+const MATERIAL_QUEEN: i32 = 1000;
 const MATERIAL_KING: i32 = 20000;
 
 #[rustfmt::skip]
@@ -74,36 +74,25 @@ const QUEEN_PST: [i32; 64] = [
     -20,-10,-10, -5, -5,-10,-10,-20,
 ];
 
-//king middle game
 #[rustfmt::skip]
-const KING_MG_PST: [i32; 64] = [
-    -30,-40,-40,-50,-50,-40,-40,-30,
-    -30,-40,-40,-50,-50,-40,-40,-30,
-    -30,-40,-40,-50,-50,-40,-40,-30,
-    -30,-40,-40,-50,-50,-40,-40,-30,
-    -20,-30,-30,-40,-40,-30,-30,-20,
-    -10,-20,-20,-20,-20,-20,-20,-10,
-     20, 20,  0,  0,  0,  0, 20, 20,
-     20, 30, 10,  0,  0, 10, 30, 20,
-];
-
-//king end game
-#[rustfmt::skip]
-const KING_EG_PST: [i32; 64] = [
-    -50,-40,-30,-20,-20,-30,-40,-50,
-    -30,-20,-10,  0,  0,-10,-20,-30,
-    -30,-10, 20, 30, 30, 20,-10,-30,
-    -30,-10, 30, 40, 40, 30,-10,-30,
-    -30,-10, 30, 40, 40, 30,-10,-30,
-    -30,-10, 20, 30, 30, 20,-10,-30,
-    -30,-30,  0,  0,  0,  0,-30,-30,
-    -50,-30,-30,-30,-30,-30,-30,-50
+const KING_PST: [i32; 64] = [
+    0,  0,  0,  0,   0,  0,  0,  0,
+    0,  0,  5,  5,   5,  5,  0,  0,
+    0,  5,  5, 10,  10,  5,  5,  0,
+    0,  5, 10, 20,  20, 10,  5,  0,
+    0,  5, 10, 20,  20, 10,  5,  0,
+    0,  0,  5, 10,  10,  5,  0,  0,
+    0,  5,  5, -5,  -5,  0,  5,  0,
+    0,  0,  5,  0, -15,  0,  10, 0,
 ];
 
 const DOUBLED_PAWN_PENALTY: i32 = 10;
 const ISOLATED_PAWN_PENALTY: i32 = 20;
 const BACKWARDS_PAWN_PENALTY: i32 = 8;
 const PASSED_PAWN_BONUS: i32 = 20;
+const ROOK_SEMI_OPEN_FILE_BONUS: i32 = 10;
+const ROOK_OPEN_FILE_BONUS: i32 = 15;
+const ROOK_ON_SEVENTH_BONUS: i32 = 20;
 
 fn init_pawn_ranks(pos: &Position) -> ([u8; 10], [u8; 10]) {
     let mut white_pawn_ranks = [0u8; 10];
@@ -175,6 +164,42 @@ fn get_pawn_structure_score(
     score
 }
 
+fn get_rook_score(
+    white_pawn_ranks: &[u8; 10],
+    black_pawn_ranks: &[u8; 10],
+    piece: u8,
+    rank: u8,
+    pawn_file: usize,
+) -> i32 {
+    let mut score = 0;
+    if get_piece_color(piece) == WHITE {
+        if black_pawn_ranks[pawn_file] == 7 {
+            if white_pawn_ranks[pawn_file] == 0 {
+                score += ROOK_OPEN_FILE_BONUS
+            } else {
+                score += ROOK_SEMI_OPEN_FILE_BONUS
+            }
+        }
+
+        if rank == 1 {
+            score += ROOK_ON_SEVENTH_BONUS
+        }
+    } else {
+        if white_pawn_ranks[pawn_file] == 0 {
+            if black_pawn_ranks[pawn_file] == 7 {
+                score -= ROOK_OPEN_FILE_BONUS
+            } else {
+                score -= ROOK_SEMI_OPEN_FILE_BONUS
+            }
+        }
+
+        if rank == 6 {
+            score -= ROOK_ON_SEVENTH_BONUS
+        }
+    }
+    score
+}
+
 const fn flip_board<T: Copy>(board: &[T; 64]) -> [T; 64] {
     let mut flipped = *board;
     let mut rank = 0;
@@ -199,8 +224,7 @@ const KNIGHT_PST_BLACK: [i32; 64] = flip_board(&KNIGHT_PST);
 const ROOK_PST_BLACK: [i32; 64] = flip_board(&ROOK_PST);
 const BISHOP_PST_BLACK: [i32; 64] = flip_board(&BISHOP_PST);
 const QUEEN_PST_BLACK: [i32; 64] = flip_board(&QUEEN_PST);
-const KING_PST_MG_BLACK: [i32; 64] = flip_board(&KING_MG_PST);
-const KING_PST_EG_BLACK: [i32; 64] = flip_board(&KING_EG_PST);
+const KING_PST_BLACK: [i32; 64] = flip_board(&KING_PST);
 
 fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
     let square64 = get_square_in_64(square);
@@ -212,7 +236,7 @@ fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
             BISHOP => BISHOP_PST[square64],
             ROOK => ROOK_PST[square64],
             QUEEN => QUEEN_PST[square64],
-            KING => KING_MG_PST[square64],
+            KING => KING_PST[square64],
             _ => panic!("Unexpected piece {}", piece),
         }
     } else {
@@ -222,7 +246,7 @@ fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
             BISHOP => -BISHOP_PST_BLACK[square64],
             ROOK => -ROOK_PST_BLACK[square64],
             QUEEN => -QUEEN_PST_BLACK[square64],
-            KING => -KING_PST_MG_BLACK[square64],
+            KING => -KING_PST_BLACK[square64],
             _ => panic!("Unexpected piece {}", piece),
         }
     }
@@ -277,7 +301,38 @@ pub fn evaluate(position: &Position) -> i32 {
                     file + 1,
                 );
             }
+            if piece_type == ROOK {
+                score += get_rook_score(
+                    &white_pawn_ranks,
+                    &black_pawn_ranks,
+                    piece,
+                    rank as u8,
+                    file + 1,
+                );
+            }
         }
     }
     score * side
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::START_POSITION_FEN;
+
+    use super::*;
+
+    #[test]
+    fn test_evaluate() {
+        let pos = Position::from_fen(START_POSITION_FEN);
+        let eval = evaluate(&pos);
+        assert_eq!(eval, 0);
+
+        let pawn_pos = Position::from_fen("4k3/1p2p3/4p1P1/3p4/3P4/4P2p/1P2P3/4K3 w - - 0 1");
+        let pawn_eval = evaluate(&pawn_pos);
+        assert_eq!(pawn_eval, 0);
+
+        let rook_pos = Position::from_fen("2r1kr2/Rp1p1p2/8/8/8/8/rP1P2P1/2R1K1R1 w - - 0 1");
+        let rook_eval = evaluate(&rook_pos);
+        assert_eq!(rook_eval, 0);
+    }
 }
