@@ -130,8 +130,78 @@ fn alphabeta(
         return quiescence(position, alpha, beta, ply + 1, context);
     }
     let mut line = PvLine::new(); // Local PV buffer for children
-    let mut moves = position.generate_legal_moves();
-    if moves.is_empty() {
+    let mut moves = position.generate_pseudo_moves();
+    let mut found_legal_move = false;
+    // Move ordering
+    order_moves_inplace(position, &mut moves, ply, context);
+    for move_ in moves {
+        let piece_at_target = position.board[move_.to];
+        let original_castling_rights = position.castling_rights;
+        let original_king_squares = position.king_squares;
+        let original_ep_square = position.enpassant_square;
+        let original_hash = position.hash;
+        position.make_move(&move_);
+
+        // test legality
+        position.is_white_turn = !position.is_white_turn; // consider from same side before move
+        let idx = match position.is_white_turn {
+            true => 0,
+            false => 1,
+        };
+        let is_legal = if !is_square_attacked(position.king_squares[idx], position) {
+            true
+        } else { false };
+        position.is_white_turn = !position.is_white_turn;
+
+        if is_legal {
+            found_legal_move = true;
+            context.node_count += 1;
+            // do not store to first rep index
+            position.repetition_index += 1;
+            position.repetition_stack[position.repetition_index] = position.hash;
+            let value = -alphabeta(
+                position,
+                -beta,
+                -alpha,
+                depth - 1,
+                ply + 1,
+                &mut line,
+                context,
+            );
+            position.unmake_move(
+                &move_,
+                piece_at_target,
+                original_castling_rights,
+                original_king_squares,
+                original_ep_square,
+            );
+            position.hash = original_hash;
+            position.repetition_index -= 1;
+
+            if value >= beta {
+                return beta; // fail hard beta-cutoff
+            }
+            if value > alpha {
+                alpha = value; // new lower bound -> pv move
+
+                // Update PV: prepend current move to child's PV
+                pv.moves[0] = Some(move_);
+                pv.moves[1..=line.count].copy_from_slice(&line.moves[..line.count]);
+                pv.count = line.count + 1;
+            }
+        } else {
+            position.unmake_move(
+                &move_,
+                piece_at_target,
+                original_castling_rights,
+                original_king_squares,
+                original_ep_square,
+            );
+            position.hash = original_hash;
+        }
+        
+    }
+    if !found_legal_move {
         pv.clear();
         let idx = match position.is_white_turn {
             true => 0,
@@ -143,49 +213,7 @@ fn alphabeta(
             return 0;
         }
     }
-    // Move ordering
-    order_moves_inplace(position, &mut moves, ply, context);
-    for move_ in moves {
-        let piece_at_target = position.board[move_.to];
-        let original_castling_rights = position.castling_rights;
-        let original_king_squares = position.king_squares;
-        let original_ep_square = position.enpassant_square;
-        let original_hash = position.hash;
-        position.make_move(&move_);
-        context.node_count += 1;
-        // do not store to first rep index
-        position.repetition_index += 1;
-        position.repetition_stack[position.repetition_index] = position.hash;
-        let value = -alphabeta(
-            position,
-            -beta,
-            -alpha,
-            depth - 1,
-            ply + 1,
-            &mut line,
-            context,
-        );
-        position.unmake_move(
-            &move_,
-            piece_at_target,
-            original_castling_rights,
-            original_king_squares,
-            original_ep_square,
-        );
-        position.hash = original_hash;
-        position.repetition_index -= 1;
-        if value >= beta {
-            return beta; // fail hard beta-cutoff
-        }
-        if value > alpha {
-            alpha = value; // new lower bound -> pv move
 
-            // Update PV: prepend current move to child's PV
-            pv.moves[0] = Some(move_);
-            pv.moves[1..=line.count].copy_from_slice(&line.moves[..line.count]);
-            pv.count = line.count + 1;
-        }
-    }
     alpha
 }
 
