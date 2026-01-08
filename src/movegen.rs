@@ -1,7 +1,7 @@
 use crate::piece::*;
 use crate::position::Position;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Move {
     pub from: usize,
     pub to: usize,

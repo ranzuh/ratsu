@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use rustchess::{
+    hash::TranspositionTable,
     movegen::get_move_string,
     position::Position,
     search::{Timer, search},
@@ -26,11 +27,13 @@ use rustchess::{
 
 #[test]
 fn win_at_chess() {
+    let mut tt = TranspositionTable::new(64);
     for (fen, exp_move, depth) in WAC_POSITIONS {
+        tt.clear();
         let mut pos = Position::from_fen(fen);
         println!("{}", fen);
         let timer = Timer::reset(Duration::from_millis(10000));
-        let search_info = search(&mut pos, *depth, timer);
+        let search_info = search(&mut pos, *depth, timer, &mut tt);
         let best_move = search_info.prev_pv.moves[0].expect("pv should have moves");
         assert_eq!(get_move_string(&best_move), *exp_move);
     }

@@ -22,6 +22,7 @@ pub fn order_moves_inplace(
     ply: u32,
     info: &SearchContext,
     history: &mut [[u32; 128]; 128],
+    tt_move: Option<Move>,
 ) {
     // Check if we have a PV move at this ply
     let pv_move = if ply < info.prev_pv.count as u32 {
@@ -33,6 +34,9 @@ pub fn order_moves_inplace(
     moves.sort_by_key(|&move_| {
         if pv_move.is_some_and(|pv_m| pv_m == move_) {
             return -100;
+        }
+        if tt_move.is_some_and(|tt_m| tt_m == move_) {
+            return -99;
         }
         let piece = pos.board[move_.from];
         let target_piece = pos.board[move_.to];

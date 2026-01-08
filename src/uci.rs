@@ -7,6 +7,7 @@ use regex::Regex;
 
 use crate::{
     START_POSITION_FEN,
+    hash::TranspositionTable,
     movegen::{Move, get_move_string},
     piece::{BISHOP, BLACK, KNIGHT, QUEEN, ROOK, WHITE},
     position::Position,
@@ -84,7 +85,7 @@ pub fn handle_position(input: &str, position: &mut Position) {
     }
 }
 
-fn handle_go(input: &str, position: &mut Position) {
+fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) {
     // default depth
     let mut depth: u32 = 10;
 
@@ -145,7 +146,7 @@ fn handle_go(input: &str, position: &mut Position) {
 
     let start = Instant::now();
     let timer = Timer::reset(duration);
-    let search_context = search(position, depth, timer);
+    let search_context = search(position, depth, timer, tt);
     let duration = start.elapsed().as_secs_f32();
     let node_count = search_context.node_count;
     let nodes_per_sec = (node_count as f32 / duration) as u64;
@@ -172,6 +173,7 @@ fn handle_go(input: &str, position: &mut Position) {
 
 pub fn uci_loop() {
     let mut position = Position::from_fen(START_POSITION_FEN);
+    let mut tt = TranspositionTable::new(64);
 
     loop {
         let input = read_line();
@@ -187,7 +189,7 @@ pub fn uci_loop() {
         } else if input.contains("isready") {
             println!("readyok");
         } else if input.contains("go") {
-            handle_go(&input, &mut position);
+            handle_go(&input, &mut position, &mut tt);
         } else if input.contains("stop") {
             println!("Handle stop")
             // stops calculating as soon as possible

@@ -2,6 +2,7 @@ use std::time::{Duration, Instant};
 
 use crate::{
     evaluation::evaluate,
+    hash::{NodeType, TranspositionTable},
     movegen::{Move, get_move_string, is_square_attacked},
     moveordering::order_moves_inplace,
     position::Position,
@@ -80,7 +81,7 @@ fn quiescence(
     let mut moves = position.generate_tactical_moves();
 
     // Move ordering
-    order_moves_inplace(position, &mut moves, ply, context, history);
+    order_moves_inplace(position, &mut moves, ply, context, history, None);
     for move_ in moves {
         position.make_move(&move_, ply);
         context.node_count += 1;
@@ -113,8 +114,9 @@ fn alphabeta(
     pv: &mut PvLine,
     context: &mut SearchContext,
     history: &mut [[u32; 128]; 128],
+    tt: &mut TranspositionTable,
 ) -> i32 {
-    if context.timer.should_stop(context.node_count) {
+    if ply > 0 && context.timer.should_stop(context.node_count) {
         return 0;
     }
 
@@ -139,11 +141,22 @@ fn alphabeta(
         depth += 1;
     }
 
+    let mut tt_move: Option<Move> = None;
+    if ply > 0 {
+        let (tt_value, _tt_move) = tt.read_entry(position.hash, alpha, beta, depth);
+        if let Some(value) = tt_value {
+            return value;
+        }
+        tt_move = _tt_move;
+    }
+
     let mut line = PvLine::new(); // Local PV buffer for children
     let mut moves = position.generate_pseudo_moves();
     let mut found_legal_move = false;
+    let mut node_type = NodeType::AlphaBound;
+    let mut best_move: Option<Move> = None;
     // Move ordering
-    order_moves_inplace(position, &mut moves, ply, context, history);
+    order_moves_inplace(position, &mut moves, ply, context, history, tt_move);
     for move_ in moves {
         position.make_move(&move_, ply);
 
@@ -162,6 +175,7 @@ fn alphabeta(
                 &mut line,
                 context,
                 history,
+                tt,
             );
             position.unmake_move(&move_, ply);
             position.repetition_index -= 1;
@@ -170,6 +184,7 @@ fn alphabeta(
                 if !move_.is_capture {
                     history[move_.from][move_.to] += depth * depth;
                 }
+                tt.write_entry(position.hash, beta, NodeType::BetaBound, depth, Some(move_));
                 return beta; // fail hard beta-cutoff
             }
             if value > alpha {
@@ -179,6 +194,9 @@ fn alphabeta(
                 pv.moves[0] = Some(move_);
                 pv.moves[1..=line.count].copy_from_slice(&line.moves[..line.count]);
                 pv.count = line.count + 1;
+
+                node_type = NodeType::Exact;
+                best_move = Some(move_);
             }
         } else {
             position.unmake_move(&move_, ply);
@@ -192,16 +210,22 @@ fn alphabeta(
             return 0;
         }
     }
-
+    tt.write_entry(position.hash, alpha, node_type, depth, best_move);
     alpha
 }
 
-pub fn search(position: &mut Position, depth: u32, timer: Timer) -> SearchContext {
+pub fn search(
+    position: &mut Position,
+    depth: u32,
+    timer: Timer,
+    tt: &mut TranspositionTable,
+) -> SearchContext {
     let mut context = SearchContext {
         prev_pv: PvLine::new(),
         node_count: 0,
         timer,
     };
+    tt.clear();
 
     for d in 1..depth + 1 {
         let mut pv = PvLine::new();
@@ -218,6 +242,7 @@ pub fn search(position: &mut Position, depth: u32, timer: Timer) -> SearchContex
             &mut pv,
             &mut context,
             &mut history,
+            tt,
         );
 
         if !context.timer.stopped {
