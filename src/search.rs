@@ -112,7 +112,7 @@ fn alphabeta(
     position: &mut Position,
     mut alpha: i32,
     beta: i32,
-    depth: u32,
+    mut depth: u32,
     ply: u32,
     pv: &mut PvLine,
     context: &mut SearchContext,
@@ -131,6 +131,18 @@ fn alphabeta(
         pv.clear();
         return quiescence(position, alpha, beta, ply + 1, context, history);
     }
+
+    // check extension
+    let idx = match position.is_white_turn {
+        true => 0,
+        false => 1,
+    };
+    let in_check = is_square_attacked(position.king_squares[idx], position);
+
+    if in_check {
+        depth += 1;
+    }
+
     let mut line = PvLine::new(); // Local PV buffer for children
     let mut moves = position.generate_pseudo_moves();
     let mut found_legal_move = false;
@@ -210,11 +222,7 @@ fn alphabeta(
     }
     if !found_legal_move {
         pv.clear();
-        let idx = match position.is_white_turn {
-            true => 0,
-            false => 1,
-        };
-        if is_square_attacked(position.king_squares[idx], position) {
+        if in_check {
             return -50000;
         } else {
             return 0;
