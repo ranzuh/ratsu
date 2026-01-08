@@ -63,6 +63,7 @@ fn quiescence(
     beta: i32,
     ply: u32,
     context: &mut SearchContext,
+    history: &mut [[u32; 128]; 128],
 ) -> i32 {
     if context.timer.should_stop(context.node_count) {
         return 0;
@@ -79,7 +80,7 @@ fn quiescence(
     let mut moves = position.generate_tactical_moves();
 
     // Move ordering
-    order_moves_inplace(position, &mut moves, ply, context);
+    order_moves_inplace(position, &mut moves, ply, context, history);
     for move_ in moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
@@ -88,7 +89,7 @@ fn quiescence(
         let original_hash = position.hash;
         position.make_move(&move_);
         context.node_count += 1;
-        let value = -quiescence(position, -beta, -alpha, ply + 1, context);
+        let value = -quiescence(position, -beta, -alpha, ply + 1, context, history);
         position.unmake_move(
             &move_,
             piece_at_target,
@@ -115,6 +116,7 @@ fn alphabeta(
     ply: u32,
     pv: &mut PvLine,
     context: &mut SearchContext,
+    history: &mut [[u32; 128]; 128],
 ) -> i32 {
     if context.timer.should_stop(context.node_count) {
         return 0;
@@ -127,13 +129,13 @@ fn alphabeta(
     // leaf node
     if depth == 0 {
         pv.clear();
-        return quiescence(position, alpha, beta, ply + 1, context);
+        return quiescence(position, alpha, beta, ply + 1, context, history);
     }
     let mut line = PvLine::new(); // Local PV buffer for children
     let mut moves = position.generate_pseudo_moves();
     let mut found_legal_move = false;
     // Move ordering
-    order_moves_inplace(position, &mut moves, ply, context);
+    order_moves_inplace(position, &mut moves, ply, context, history);
     for move_ in moves {
         let piece_at_target = position.board[move_.to];
         let original_castling_rights = position.castling_rights;
@@ -150,7 +152,9 @@ fn alphabeta(
         };
         let is_legal = if !is_square_attacked(position.king_squares[idx], position) {
             true
-        } else { false };
+        } else {
+            false
+        };
         position.is_white_turn = !position.is_white_turn;
 
         if is_legal {
@@ -167,6 +171,7 @@ fn alphabeta(
                 ply + 1,
                 &mut line,
                 context,
+                history,
             );
             position.unmake_move(
                 &move_,
@@ -179,6 +184,9 @@ fn alphabeta(
             position.repetition_index -= 1;
 
             if value >= beta {
+                if !move_.is_capture {
+                    history[move_.from][move_.to] += depth * depth;
+                }
                 return beta; // fail hard beta-cutoff
             }
             if value > alpha {
@@ -199,7 +207,6 @@ fn alphabeta(
             );
             position.hash = original_hash;
         }
-        
     }
     if !found_legal_move {
         pv.clear();
@@ -223,12 +230,23 @@ pub fn search(position: &mut Position, depth: u32, timer: Timer) -> SearchContex
         node_count: 0,
         timer,
     };
+
     for d in 1..depth + 1 {
         let mut pv = PvLine::new();
         let alpha = -100000;
         let beta = 100000;
         let ply = 0;
-        let value = alphabeta(position, alpha, beta, d, ply, &mut pv, &mut context);
+        let mut history = [[0u32; 128]; 128];
+        let value = alphabeta(
+            position,
+            alpha,
+            beta,
+            d,
+            ply,
+            &mut pv,
+            &mut context,
+            &mut history,
+        );
 
         if !context.timer.stopped {
             context.prev_pv = pv;
