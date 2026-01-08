@@ -76,7 +76,7 @@ pub fn handle_position(input: &str, position: &mut Position) {
         let moves_part = &input[index + 6..];
         for move_string in moves_part.split(" ") {
             let move_ = parse_move(move_string, position);
-            position.make_move(&move_);
+            position.make_move(&move_, 0);
             position.repetition_index += 1;
             position.repetition_stack[position.repetition_index] = position.hash;
         }

@@ -519,12 +519,7 @@ pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
     let pseudo_moves = generate_pseudo_moves(position, false);
     let mut legal_moves: Vec<Move> = Vec::with_capacity(100);
     for move_ in &pseudo_moves {
-        let piece_at_target = position.board[move_.to];
-        let original_castling_rights = position.castling_rights;
-        let original_king_squares = position.king_squares;
-        let original_ep_square = position.enpassant_square;
-        let original_hash = position.hash;
-        position.make_move(move_); // make move
+        position.make_move(move_, 0); // make move
         position.is_white_turn = !position.is_white_turn; // consider from same side before move
         let idx = match position.is_white_turn {
             true => 0,
@@ -534,14 +529,7 @@ pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
             legal_moves.push(*move_); // TODO DEBUG
         }
         position.is_white_turn = !position.is_white_turn;
-        position.unmake_move(
-            move_,
-            piece_at_target,
-            original_castling_rights,
-            original_king_squares,
-            original_ep_square,
-        );
-        position.hash = original_hash;
+        position.unmake_move(move_, 0);
     }
     legal_moves
 }

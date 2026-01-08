@@ -17,6 +17,12 @@ pub struct Position {
     pub hash: u64,
     pub repetition_stack: [u64; 512],
     pub repetition_index: usize,
+
+    prev_target_piece: [u8; 64],
+    prev_castling_rights: [[bool; 4]; 64],
+    prev_king_squares: [[usize; 2]; 64],
+    prev_ep_square: [Option<usize>; 64],
+    prev_hash: [u64; 64],
 }
 
 impl Position {
@@ -66,6 +72,12 @@ impl Position {
             hash: 0u64, // not generated yet
             repetition_stack: [0u64; 512],
             repetition_index: 0,
+
+            prev_target_piece: [0u8; 64],
+            prev_castling_rights: [[false, false, false, false]; 64],
+            prev_king_squares: [[127, 127]; 64],
+            prev_ep_square: [None; 64],
+            prev_hash: [0u64; 64],
         };
         let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
         // currently using only the piece placement, later use side, castling, ep, etc.
@@ -227,7 +239,13 @@ impl Position {
         }
     }
 
-    pub fn make_move(&mut self, move_: &Move) {
+    pub fn make_move(&mut self, move_: &Move, ply: u32) {
+        self.prev_target_piece[ply as usize] = self.board[move_.to];
+        self.prev_castling_rights[ply as usize] = self.castling_rights;
+        self.prev_king_squares[ply as usize] = self.king_squares;
+        self.prev_ep_square[ply as usize] = self.enpassant_square;
+        self.prev_hash[ply as usize] = self.hash;
+
         let piece = self.board[move_.from];
         let piece_type = get_piece_type(piece);
         // remove previous en passant square from hash
@@ -324,20 +342,13 @@ impl Position {
         self.hash ^= self.keys.black_to_move_key;
     }
 
-    pub fn unmake_move(
-        &mut self,
-        move_: &Move,
-        piece_at_target: u8,
-        original_castling_rights: [bool; 4],
-        original_king_squares: [usize; 2],
-        original_ep_square: Option<usize>,
-    ) {
+    pub fn unmake_move(&mut self, move_: &Move, ply: u32) {
         if move_.is_castling {
             self.revert_castling_move(move_);
         }
         let piece = self.board[move_.to];
         self.board[move_.from] = piece;
-        self.board[move_.to] = piece_at_target;
+        self.board[move_.to] = self.prev_target_piece[ply as usize];
         self.is_white_turn = !self.is_white_turn;
         if move_.is_enpassant {
             if self.is_white_turn {
@@ -353,9 +364,9 @@ impl Position {
                 self.board[move_.from] = BLACK | PAWN;
             }
         }
-        self.castling_rights = original_castling_rights;
-        // TODO: Fix unmakemove - for example king squares, do proper reverse
-        self.king_squares = original_king_squares;
-        self.enpassant_square = original_ep_square;
+        self.castling_rights = self.prev_castling_rights[ply as usize];
+        self.king_squares = self.prev_king_squares[ply as usize];
+        self.enpassant_square = self.prev_ep_square[ply as usize];
+        self.hash = self.prev_hash[ply as usize];
     }
 }

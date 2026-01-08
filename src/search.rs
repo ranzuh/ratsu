@@ -82,22 +82,10 @@ fn quiescence(
     // Move ordering
     order_moves_inplace(position, &mut moves, ply, context, history);
     for move_ in moves {
-        let piece_at_target = position.board[move_.to];
-        let original_castling_rights = position.castling_rights;
-        let original_king_squares = position.king_squares;
-        let original_ep_square = position.enpassant_square;
-        let original_hash = position.hash;
-        position.make_move(&move_);
+        position.make_move(&move_, ply);
         context.node_count += 1;
         let value = -quiescence(position, -beta, -alpha, ply + 1, context, history);
-        position.unmake_move(
-            &move_,
-            piece_at_target,
-            original_castling_rights,
-            original_king_squares,
-            original_ep_square,
-        );
-        position.hash = original_hash;
+        position.unmake_move(&move_, ply);
         if value >= beta {
             return beta; // fail hard beta-cutoff
         }
@@ -106,6 +94,14 @@ fn quiescence(
         }
     }
     alpha
+}
+
+fn is_legal(position: &mut Position) -> bool {
+    position.is_white_turn = !position.is_white_turn; // consider from same side before move
+    let idx = if position.is_white_turn { 0 } else { 1 };
+    let is_legal = !is_square_attacked(position.king_squares[idx], position);
+    position.is_white_turn = !position.is_white_turn;
+    is_legal
 }
 
 fn alphabeta(
@@ -149,27 +145,9 @@ fn alphabeta(
     // Move ordering
     order_moves_inplace(position, &mut moves, ply, context, history);
     for move_ in moves {
-        let piece_at_target = position.board[move_.to];
-        let original_castling_rights = position.castling_rights;
-        let original_king_squares = position.king_squares;
-        let original_ep_square = position.enpassant_square;
-        let original_hash = position.hash;
-        position.make_move(&move_);
+        position.make_move(&move_, ply);
 
-        // test legality
-        position.is_white_turn = !position.is_white_turn; // consider from same side before move
-        let idx = match position.is_white_turn {
-            true => 0,
-            false => 1,
-        };
-        let is_legal = if !is_square_attacked(position.king_squares[idx], position) {
-            true
-        } else {
-            false
-        };
-        position.is_white_turn = !position.is_white_turn;
-
-        if is_legal {
+        if is_legal(position) {
             found_legal_move = true;
             context.node_count += 1;
             // do not store to first rep index
@@ -185,14 +163,7 @@ fn alphabeta(
                 context,
                 history,
             );
-            position.unmake_move(
-                &move_,
-                piece_at_target,
-                original_castling_rights,
-                original_king_squares,
-                original_ep_square,
-            );
-            position.hash = original_hash;
+            position.unmake_move(&move_, ply);
             position.repetition_index -= 1;
 
             if value >= beta {
@@ -210,14 +181,7 @@ fn alphabeta(
                 pv.count = line.count + 1;
             }
         } else {
-            position.unmake_move(
-                &move_,
-                piece_at_target,
-                original_castling_rights,
-                original_king_squares,
-                original_ep_square,
-            );
-            position.hash = original_hash;
+            position.unmake_move(&move_, ply);
         }
     }
     if !found_legal_move {

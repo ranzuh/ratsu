@@ -31,12 +31,7 @@ pub fn perft(depth: u32, position: &mut Position, counts: &mut PerftCounts, divi
         if move_.promoted_piece.is_some() {
             counts.promotions += 1;
         }
-        //let mut pos_copy = position.clone();
-        let target_piece = position.board[move_.to];
-        let original_castling_rights = position.castling_rights;
-        let original_king_squares = position.king_squares;
-        let original_ep_square = position.enpassant_square;
-        position.make_move(&move_);
+        position.make_move(&move_, depth);
 
         let result = perft(depth - 1, position, counts, false);
         if divide {
@@ -44,14 +39,7 @@ pub fn perft(depth: u32, position: &mut Position, counts: &mut PerftCounts, divi
         }
 
         nodes += result;
-        //*position = pos_copy;
-        position.unmake_move(
-            &move_,
-            target_piece,
-            original_castling_rights,
-            original_king_squares,
-            original_ep_square,
-        );
+        position.unmake_move(&move_, depth);
     }
     nodes
 }
