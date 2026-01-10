@@ -124,12 +124,6 @@ fn alphabeta(
         return 0;
     }
 
-    // leaf node
-    if depth == 0 {
-        pv.clear();
-        return quiescence(position, alpha, beta, ply + 1, context, history);
-    }
-
     // check extension
     let idx = match position.is_white_turn {
         true => 0,
@@ -139,6 +133,12 @@ fn alphabeta(
 
     if in_check {
         depth += 1;
+    }
+
+    // leaf node
+    if depth == 0 {
+        pv.clear();
+        return quiescence(position, alpha, beta, ply + 1, context, history);
     }
 
     let mut tt_move: Option<Move> = None;
