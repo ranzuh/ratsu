@@ -277,13 +277,16 @@ impl Position {
         if self.castling_rights[0] && (move_.from == 119 || move_.to == 119) {
             self.castling_rights[0] = false;
             self.hash ^= self.keys.castling_rights_keys[0];
-        } else if self.castling_rights[1] && (move_.from == 112 || move_.to == 112) {
+        }
+        if self.castling_rights[1] && (move_.from == 112 || move_.to == 112) {
             self.castling_rights[1] = false;
             self.hash ^= self.keys.castling_rights_keys[1];
-        } else if self.castling_rights[2] && (move_.from == 7 || move_.to == 7) {
+        }
+        if self.castling_rights[2] && (move_.from == 7 || move_.to == 7) {
             self.castling_rights[2] = false;
             self.hash ^= self.keys.castling_rights_keys[2];
-        } else if self.castling_rights[3] && (move_.from == 0 || move_.to == 0) {
+        }
+        if self.castling_rights[3] && (move_.from == 0 || move_.to == 0) {
             self.castling_rights[3] = false;
             self.hash ^= self.keys.castling_rights_keys[3];
         }

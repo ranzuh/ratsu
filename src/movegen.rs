@@ -104,8 +104,7 @@ pub fn get_move_string(move_: &Move) -> String {
 pub fn is_square_attacked(square: usize, position: &Position) -> bool {
     // pawn attacks
     if position.is_white_turn {
-        let patterns = [-15, -17];
-        for pattern in patterns {
+        for pattern in [-15, -17] {
             let attack = square.wrapping_add_signed(pattern);
             if is_off_board(attack) {
                 continue;
@@ -116,8 +115,7 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
             }
         }
     } else {
-        let patterns = [15, 17];
-        for pattern in patterns {
+        for pattern in [15, 17] {
             let attack = square.wrapping_add_signed(pattern);
             if is_off_board(attack) {
                 continue;
@@ -129,8 +127,7 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
         }
     }
     // knight attacks
-    let patterns = get_piece_move_patterns(KNIGHT);
-    for pattern in patterns {
+    for pattern in KNIGHT_MOVES {
         let attack = square.wrapping_add_signed(*pattern);
         if is_off_board(attack) {
             continue;
@@ -144,8 +141,7 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
         }
     }
     // king attacks
-    let patterns = get_piece_move_patterns(KING);
-    for pattern in patterns {
+    for pattern in QUEEN_KING_MOVES {
         let attack = square.wrapping_add_signed(*pattern);
         if is_off_board(attack) {
             continue;
@@ -159,8 +155,7 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
         }
     }
     // bishop and queen attacks
-    let patterns = get_piece_move_patterns(BISHOP);
-    for pattern in patterns {
+    for pattern in BISHOP_MOVES {
         let mut attack = square.wrapping_add_signed(*pattern);
         while !is_off_board(attack) {
             let attack_piece = position.board[attack];
@@ -181,8 +176,7 @@ pub fn is_square_attacked(square: usize, position: &Position) -> bool {
         }
     }
     // rook and queen attacks
-    let patterns = get_piece_move_patterns(ROOK);
-    for pattern in patterns {
+    for pattern in ROOK_MOVES {
         let mut attack = square.wrapping_add_signed(*pattern);
         while !is_off_board(attack) {
             let attack_piece = position.board[attack];
@@ -294,7 +288,7 @@ fn generate_crawling_moves(
             }
         }
 
-        if !position.is_white_turn && (position.castling_rights[2] || position.castling_rights[3]) {
+        if !position.is_white_turn {
             if position.castling_rights[2]
                 && position.board[square + 1] == EMPTY
                 && position.board[square + 2] == EMPTY
@@ -382,49 +376,47 @@ fn generate_pawn_moves(
 
     // Forward move
     let target_square = square.wrapping_add_signed(forward);
-    if !is_off_board(target_square) {
-        let target_piece = position.board[target_square];
+    let target_piece = position.board[target_square];
 
-        if get_piece_type(target_piece) == EMPTY {
-            // Handle promotion
-            if get_rank(target_square) == promotion_rank {
-                for prom_piece in [KNIGHT, BISHOP, ROOK, QUEEN] {
-                    moves.push(Move {
-                        from: square,
-                        to: target_square,
-                        promoted_piece: Some(current_color | prom_piece),
-                        is_capture: false,
-                        is_enpassant: false,
-                        is_double_pawn: false,
-                        is_castling: false,
-                    });
-                }
-            } else if !only_tactical_moves {
-                // Normal forward move
+    if target_piece == EMPTY {
+        // Handle promotion
+        if get_rank(target_square) == promotion_rank {
+            for prom_piece in [QUEEN, KNIGHT, ROOK, BISHOP] {
                 moves.push(Move {
                     from: square,
                     to: target_square,
-                    promoted_piece: None,
+                    promoted_piece: Some(current_color | prom_piece),
                     is_capture: false,
                     is_enpassant: false,
                     is_double_pawn: false,
                     is_castling: false,
                 });
+            }
+        } else if !only_tactical_moves {
+            // Normal forward move
+            moves.push(Move {
+                from: square,
+                to: target_square,
+                promoted_piece: None,
+                is_capture: false,
+                is_enpassant: false,
+                is_double_pawn: false,
+                is_castling: false,
+            });
 
-                // Double forward move from starting position
-                if get_rank(square) == rank_for_double_move {
-                    let double_target = target_square.wrapping_add_signed(forward);
-                    if get_piece_type(position.board[double_target]) == EMPTY {
-                        moves.push(Move {
-                            from: square,
-                            to: double_target,
-                            promoted_piece: None,
-                            is_capture: false,
-                            is_enpassant: false,
-                            is_double_pawn: true,
-                            is_castling: false,
-                        });
-                    }
+            // Double forward move from starting position
+            if get_rank(square) == rank_for_double_move {
+                let double_target = target_square.wrapping_add_signed(forward);
+                if position.board[double_target] == EMPTY {
+                    moves.push(Move {
+                        from: square,
+                        to: double_target,
+                        promoted_piece: None,
+                        is_capture: false,
+                        is_enpassant: false,
+                        is_double_pawn: true,
+                        is_castling: false,
+                    });
                 }
             }
         }
@@ -448,7 +440,7 @@ fn generate_pawn_moves(
         if get_piece_color(target_piece) == opponent_color {
             // Handle promotion
             if get_rank(target_square) == promotion_rank {
-                for prom_piece in [KNIGHT, BISHOP, ROOK, QUEEN] {
+                for prom_piece in [QUEEN, KNIGHT, ROOK, BISHOP] {
                     moves.push(Move {
                         from: square,
                         to: target_square,
@@ -492,6 +484,9 @@ pub fn generate_pseudo_moves(position: &Position, only_tactical_moves: bool) -> 
 
     for square in BOARD_SQUARES {
         let piece = position.board[square];
+        if piece == EMPTY {
+            continue;
+        }
         let side_to_move = if position.is_white_turn { WHITE } else { BLACK };
         if get_piece_color(piece) != side_to_move {
             continue;
