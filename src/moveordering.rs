@@ -25,11 +25,7 @@ pub fn order_moves_inplace(
     tt_move: Option<Move>,
 ) {
     // Check if we have a PV move at this ply
-    let pv_move = if ply < info.prev_pv.count as u32 {
-        info.prev_pv.moves[ply as usize]
-    } else {
-        None
-    };
+    let pv_move = info.prev_pv.get(ply as usize).copied();
 
     moves.sort_by_key(|&move_| {
         if pv_move.is_some_and(|pv_m| pv_m == move_) {
@@ -38,10 +34,10 @@ pub fn order_moves_inplace(
         if tt_move.is_some_and(|tt_m| tt_m == move_) {
             return -99;
         }
-        let piece = pos.board[move_.from];
         let target_piece = pos.board[move_.to];
         // score most valuable victim and least valuable attacker (MVV-LVA)
-        if get_piece_type(target_piece) != EMPTY {
+        if target_piece != EMPTY {
+            let piece = pos.board[move_.from];
             let piece_type = get_piece_type(piece);
             let target_piece_type = get_piece_type(target_piece);
             return MVV_LVA[target_piece_type as usize][piece_type as usize] as i32;

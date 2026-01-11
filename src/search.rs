@@ -8,27 +8,6 @@ use crate::{
     position::Position,
 };
 
-const MAX_DEPTH: usize = 64;
-
-#[derive(Debug, Clone, Copy)]
-pub struct PvLine {
-    pub moves: [Option<Move>; MAX_DEPTH],
-    pub count: usize,
-}
-
-impl PvLine {
-    fn new() -> Self {
-        PvLine {
-            moves: [None; MAX_DEPTH],
-            count: 0,
-        }
-    }
-
-    fn clear(&mut self) {
-        self.count = 0;
-    }
-}
-
 pub struct Timer {
     start_time: Instant,
     max_duration: Duration,
@@ -53,7 +32,7 @@ impl Timer {
 }
 
 pub struct SearchContext {
-    pub prev_pv: PvLine,
+    pub prev_pv: Vec<Move>,
     pub node_count: u64,
     timer: Timer,
 }
@@ -111,7 +90,7 @@ fn alphabeta(
     beta: i32,
     mut depth: u32,
     ply: u32,
-    pv: &mut PvLine,
+    pv: &mut Vec<Move>,
     context: &mut SearchContext,
     history: &mut [[u32; 128]; 128],
     tt: &mut TranspositionTable,
@@ -137,7 +116,6 @@ fn alphabeta(
 
     // leaf node
     if depth == 0 {
-        pv.clear();
         return quiescence(position, alpha, beta, ply + 1, context, history);
     }
 
@@ -150,7 +128,9 @@ fn alphabeta(
         tt_move = _tt_move;
     }
 
-    let mut line = PvLine::new(); // Local PV buffer for children
+    // Local PV buffer for children
+    // Should this be per node in for loop?
+    let mut line = Vec::new();
     let mut moves = position.generate_pseudo_moves();
     let mut found_legal_move = false;
     let mut node_type = NodeType::AlphaBound;
@@ -191,9 +171,9 @@ fn alphabeta(
                 alpha = value; // new lower bound -> pv move
 
                 // Update PV: prepend current move to child's PV
-                pv.moves[0] = Some(move_);
-                pv.moves[1..=line.count].copy_from_slice(&line.moves[..line.count]);
-                pv.count = line.count + 1;
+                pv.clear();
+                pv.push(move_);
+                pv.append(&mut line);
 
                 node_type = NodeType::Exact;
                 best_move = Some(move_);
@@ -203,7 +183,6 @@ fn alphabeta(
         }
     }
     if !found_legal_move {
-        pv.clear();
         if in_check {
             return -50000;
         } else {
@@ -221,14 +200,14 @@ pub fn search(
     tt: &mut TranspositionTable,
 ) -> SearchContext {
     let mut context = SearchContext {
-        prev_pv: PvLine::new(),
+        prev_pv: Vec::new(),
         node_count: 0,
         timer,
     };
     tt.clear();
 
     for d in 1..depth + 1 {
-        let mut pv = PvLine::new();
+        let mut pv: Vec<Move> = Vec::new();
         let alpha = -100000;
         let beta = 100000;
         let ply = 0;
@@ -246,11 +225,10 @@ pub fn search(
         );
 
         if !context.timer.stopped {
-            context.prev_pv = pv;
+            context.prev_pv = pv.clone();
             let pv_string = pv
-                .moves
+                .clone()
                 .iter()
-                .flatten() // filters out None and unwraps Some
                 .map(get_move_string)
                 .collect::<Vec<_>>()
                 .join(" ");

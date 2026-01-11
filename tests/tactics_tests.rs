@@ -34,7 +34,7 @@ fn win_at_chess() {
         println!("{}", fen);
         let timer = Timer::reset(Duration::from_millis(10000));
         let search_info = search(&mut pos, *depth, timer, &mut tt);
-        let best_move = search_info.prev_pv.moves[0].expect("pv should have moves");
+        let best_move = search_info.prev_pv.get(0).expect("pv should have moves");
         assert_eq!(get_move_string(&best_move), *exp_move);
     }
 }

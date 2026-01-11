@@ -150,11 +150,14 @@ fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) 
     let duration = start.elapsed().as_secs_f32();
     let node_count = search_context.node_count;
     let nodes_per_sec = (node_count as f32 / duration) as u64;
-    let best_move = search_context.prev_pv.moves[0].expect("pv should have moves");
+    let best_move = search_context
+        .prev_pv
+        .first()
+        .expect("pv should have moves");
 
     println!("info nodes {}", node_count);
     println!("info nps {}", nodes_per_sec);
-    println!("bestmove {}", get_move_string(&best_move));
+    println!("bestmove {}", get_move_string(best_move));
 }
 
 // Minimum UCI Requirements
