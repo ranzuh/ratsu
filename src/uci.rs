@@ -9,6 +9,7 @@ use crate::{
     START_POSITION_FEN,
     hash::TranspositionTable,
     movegen::{Move, get_move_string},
+    perft::run_perft,
     piece::{BISHOP, BLACK, KNIGHT, QUEEN, ROOK, WHITE},
     position::Position,
     search::{Timer, search},
@@ -193,6 +194,10 @@ pub fn uci_loop() {
             println!("readyok");
         } else if input.contains("go") {
             handle_go(&input, &mut position, &mut tt);
+        } else if input.contains("perft") {
+            // use like: perft 5
+            let depth = input[6..].trim().parse::<u32>().unwrap();
+            run_perft(depth, &mut position);
         } else if input.contains("stop") {
             println!("Handle stop")
             // stops calculating as soon as possible
