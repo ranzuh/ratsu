@@ -87,7 +87,7 @@ pub fn handle_position(input: &str, position: &mut Position) {
 
 fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) {
     // default depth
-    let mut depth: u32 = 10;
+    let mut depth: u32 = 64;
 
     let movetime: u64;
     let mut base: u64 = 0;

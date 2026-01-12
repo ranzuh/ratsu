@@ -84,7 +84,7 @@ impl Position {
         let piece_placement = fen_parts[0];
         let side_to_move = fen_parts[1];
         let castling_rights = fen_parts[2];
-        let ep_square = fen_parts[3];
+        let ep_square = fen_parts[3].trim_ascii_end();
 
         if ep_square != "-" {
             let ep_file = ep_square.chars().next().unwrap() as usize;
@@ -259,16 +259,24 @@ impl Position {
             if piece_type == KING {
                 match self.is_white_turn {
                     true => {
-                        self.castling_rights[0] = false;
-                        self.castling_rights[1] = false;
-                        self.hash ^= self.keys.castling_rights_keys[0];
-                        self.hash ^= self.keys.castling_rights_keys[1];
+                        if self.castling_rights[0] {
+                            self.hash ^= self.keys.castling_rights_keys[0];
+                            self.castling_rights[0] = false;
+                        }
+                        if self.castling_rights[1] {
+                            self.hash ^= self.keys.castling_rights_keys[1];
+                            self.castling_rights[1] = false;
+                        }
                     }
                     false => {
-                        self.castling_rights[2] = false;
-                        self.castling_rights[3] = false;
-                        self.hash ^= self.keys.castling_rights_keys[2];
-                        self.hash ^= self.keys.castling_rights_keys[3];
+                        if self.castling_rights[2] {
+                            self.hash ^= self.keys.castling_rights_keys[2];
+                            self.castling_rights[2] = false;
+                        }
+                        if self.castling_rights[3] {
+                            self.hash ^= self.keys.castling_rights_keys[3];
+                            self.castling_rights[3] = false;
+                        }
                     }
                 }
             }
@@ -327,14 +335,16 @@ impl Position {
                 self.hash ^= self.piece_hash(move_.to - 16, WHITE | PAWN);
             }
         }
+
+        if move_.is_capture {
+            let target_piece = self.board[move_.to];
+            self.hash ^= self.piece_hash(move_.to, target_piece);
+        }
+
         if let Some(prom_piece) = move_.promoted_piece {
             self.board[move_.to] = prom_piece;
             self.hash ^= self.piece_hash(move_.to, prom_piece);
         } else {
-            if move_.is_capture {
-                let target_piece = self.board[move_.to];
-                self.hash ^= self.piece_hash(move_.to, target_piece);
-            }
             self.board[move_.to] = piece;
             self.hash ^= self.piece_hash(move_.to, piece);
         }

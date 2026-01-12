@@ -445,7 +445,7 @@ fn generate_pawn_moves(
                         from: square,
                         to: target_square,
                         promoted_piece: Some(current_color | prom_piece),
-                        is_capture: false,
+                        is_capture: true,
                         is_enpassant: false,
                         is_double_pawn: false,
                         is_castling: false,
