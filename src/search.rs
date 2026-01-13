@@ -103,6 +103,9 @@ fn alphabeta(
     if ply > 0 && position.is_repetition() {
         return 0;
     }
+    if position.fifty >= 100 {
+        return 0;
+    }
 
     // check extension
     let idx = match position.is_white_turn {

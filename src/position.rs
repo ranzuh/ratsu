@@ -17,12 +17,14 @@ pub struct Position {
     pub hash: u64,
     pub repetition_stack: [u64; 512],
     pub repetition_index: usize,
+    pub fifty: u8,
 
     prev_target_piece: [u8; 64],
     prev_castling_rights: [[bool; 4]; 64],
     prev_king_squares: [[usize; 2]; 64],
     prev_ep_square: [Option<usize>; 64],
     prev_hash: [u64; 64],
+    prev_fifty: [u8; 64],
 }
 
 impl Position {
@@ -40,6 +42,7 @@ impl Position {
             None => "_".to_string(),
         };
         print!(" EP square {}", ep_square);
+        print!(" hm {}", self.fifty);
 
         let mut rank = 8;
         for i in BOARD_SQUARES {
@@ -72,12 +75,14 @@ impl Position {
             hash: 0u64, // not generated yet
             repetition_stack: [0u64; 512],
             repetition_index: 0,
+            fifty: 0,
 
             prev_target_piece: [0u8; 64],
             prev_castling_rights: [[false, false, false, false]; 64],
             prev_king_squares: [[127, 127]; 64],
             prev_ep_square: [None; 64],
             prev_hash: [0u64; 64],
+            prev_fifty: [0u8; 64],
         };
         let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
         // currently using only the piece placement, later use side, castling, ep, etc.
@@ -245,6 +250,7 @@ impl Position {
         self.prev_king_squares[ply as usize] = self.king_squares;
         self.prev_ep_square[ply as usize] = self.enpassant_square;
         self.prev_hash[ply as usize] = self.hash;
+        self.prev_fifty[ply as usize] = self.fifty;
 
         let piece = self.board[move_.from];
         let piece_type = get_piece_type(piece);
@@ -253,6 +259,11 @@ impl Position {
             self.hash ^= self.keys.enpassant_file_keys[get_file(ep_square)];
         }
         self.enpassant_square = None;
+        self.fifty += 1;
+
+        if piece_type == PAWN {
+            self.fifty = 0;
+        }
 
         if self.side_has_castling_rights() {
             // lose castling rights when king moves
@@ -339,6 +350,7 @@ impl Position {
         if move_.is_capture {
             let target_piece = self.board[move_.to];
             self.hash ^= self.piece_hash(move_.to, target_piece);
+            self.fifty = 0;
         }
 
         if let Some(prom_piece) = move_.promoted_piece {
@@ -381,6 +393,7 @@ impl Position {
         self.king_squares = self.prev_king_squares[ply as usize];
         self.enpassant_square = self.prev_ep_square[ply as usize];
         self.hash = self.prev_hash[ply as usize];
+        self.fifty = self.prev_fifty[ply as usize];
     }
 
     pub fn make_null(&mut self) {
