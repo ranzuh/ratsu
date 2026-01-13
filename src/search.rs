@@ -94,6 +94,7 @@ fn alphabeta(
     context: &mut SearchContext,
     history: &mut [[u32; 128]; 128],
     tt: &mut TranspositionTable,
+    pv_node: bool,
 ) -> i32 {
     if ply > 0 && context.timer.should_stop(context.node_count) {
         return 0;
@@ -114,6 +115,31 @@ fn alphabeta(
         depth += 1;
     }
 
+    // null move pruning
+    if depth >= 3 && !in_check && ply > 0 && !pv_node {
+        let copy_ep = position.enpassant_square;
+        position.make_null();
+
+        let mut line = Vec::new();
+        let value = -alphabeta(
+            position,
+            -beta,
+            -beta + 1,
+            depth - 3,
+            ply + 1,
+            &mut line,
+            context,
+            history,
+            tt,
+            false,
+        );
+        position.unmake_null(copy_ep);
+
+        if value >= beta {
+            return beta;
+        }
+    }
+
     // leaf node
     if depth == 0 {
         return quiescence(position, alpha, beta, ply + 1, context, history);
@@ -132,6 +158,7 @@ fn alphabeta(
     let mut found_legal_move = false;
     let mut node_type = NodeType::AlphaBound;
     let mut best_move: Option<Move> = None;
+    let mut follow_pv = true;
     // Move ordering
     order_moves_inplace(position, &mut moves, ply, context, history, tt_move);
     for move_ in moves {
@@ -156,9 +183,11 @@ fn alphabeta(
                 context,
                 history,
                 tt,
+                follow_pv,
             );
             position.unmake_move(&move_, ply);
             position.repetition_index -= 1;
+            follow_pv = false;
 
             if value >= beta {
                 if !move_.is_capture {
@@ -212,6 +241,7 @@ pub fn search(
         let beta = 100000;
         let ply = 0;
         let mut history = [[0u32; 128]; 128];
+        let follow_pv = true;
         let value = alphabeta(
             position,
             alpha,
@@ -222,6 +252,7 @@ pub fn search(
             &mut context,
             &mut history,
             tt,
+            follow_pv,
         );
 
         if !context.timer.stopped {

@@ -382,4 +382,24 @@ impl Position {
         self.enpassant_square = self.prev_ep_square[ply as usize];
         self.hash = self.prev_hash[ply as usize];
     }
+
+    pub fn make_null(&mut self) {
+        self.is_white_turn = !self.is_white_turn;
+        self.hash ^= self.keys.black_to_move_key;
+
+        // hash enpassant if available (remove enpassant square from hash key )
+        if let Some(ep_square) = self.enpassant_square {
+            self.hash ^= self.keys.enpassant_file_keys[get_file(ep_square)];
+        }
+        self.enpassant_square = None;
+    }
+
+    pub fn unmake_null(&mut self, copy_ep: Option<usize>) {
+        self.is_white_turn = !self.is_white_turn;
+        self.hash ^= self.keys.black_to_move_key;
+        if let Some(ep_square) = copy_ep {
+            self.hash ^= self.keys.enpassant_file_keys[get_file(ep_square)];
+        }
+        self.enpassant_square = copy_ep;
+    }
 }
