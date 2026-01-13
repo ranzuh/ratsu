@@ -128,9 +128,6 @@ fn alphabeta(
         tt_move = _tt_move;
     }
 
-    // Local PV buffer for children
-    // Should this be per node in for loop?
-    let mut line = Vec::new();
     let mut moves = position.generate_pseudo_moves();
     let mut found_legal_move = false;
     let mut node_type = NodeType::AlphaBound;
@@ -141,6 +138,9 @@ fn alphabeta(
         position.make_move(&move_, ply);
 
         if is_legal(position) {
+            // Local PV buffer for children
+            let mut line = Vec::new();
+
             found_legal_move = true;
             context.node_count += 1;
             // do not store to first rep index
