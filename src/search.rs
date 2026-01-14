@@ -76,7 +76,7 @@ fn quiescence(
     alpha
 }
 
-fn is_legal(position: &mut Position) -> bool {
+pub fn is_legal(position: &mut Position) -> bool {
     position.is_white_turn = !position.is_white_turn; // consider from same side before move
     let idx = if position.is_white_turn { 0 } else { 1 };
     let is_legal = !is_square_attacked(position.king_squares[idx], position);

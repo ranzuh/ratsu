@@ -1,4 +1,4 @@
-use crate::{movegen::get_move_string, position::Position};
+use crate::{movegen::get_move_string, position::Position, search::is_legal};
 use std::time::Instant;
 
 #[derive(Default, Debug)]
@@ -16,29 +16,32 @@ pub fn perft(depth: u32, position: &mut Position, counts: &mut PerftCounts, divi
         return 1;
     }
 
-    let moves = position.generate_legal_moves();
+    let moves = position.generate_pseudo_moves();
     for move_ in moves {
-        // TODO: remove later? - debug stuff
-        if move_.is_castling {
-            counts.castlings += 1;
-        }
-        if move_.is_capture {
-            counts.captures += 1;
-        }
-        if move_.is_enpassant {
-            counts.enpassants += 1;
-        }
-        if move_.promoted_piece.is_some() {
-            counts.promotions += 1;
-        }
         position.make_move(&move_, depth);
+        if is_legal(position) {
+            // TODO: remove later? - debug stuff
+            if move_.is_castling {
+                counts.castlings += 1;
+            }
+            if move_.is_capture {
+                counts.captures += 1;
+            }
+            if move_.is_enpassant {
+                counts.enpassants += 1;
+            }
+            if move_.promoted_piece.is_some() {
+                counts.promotions += 1;
+            }
 
-        let result = perft(depth - 1, position, counts, false);
-        if divide {
-            println!("{} {}", get_move_string(&move_), result);
+            let result = perft(depth - 1, position, counts, false);
+            
+            if divide {
+                println!("{} {}", get_move_string(&move_), result);
+            }
+            
+            nodes += result;
         }
-
-        nodes += result;
         position.unmake_move(&move_, depth);
     }
     nodes
