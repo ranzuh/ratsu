@@ -18,11 +18,12 @@ pub fn order_moves_inplace(
     info: &SearchContext,
     history: &mut [[u32; 128]; 128],
     tt_move: &Option<Move>,
+    killers: &mut [[Option<Move>; 2]; 64],
 ) {
     // Check if we have a PV move at this ply
     let pv_move = info.prev_pv.get(ply as usize);
 
-    moves.sort_by_key(|&move_| {
+    moves.sort_by_cached_key(|&move_| {
         if pv_move.is_some_and(|pv_m| pv_m.from == move_.from && pv_m.to == move_.to) {
             return -100;
         }
@@ -37,6 +38,17 @@ pub fn order_moves_inplace(
             let target_piece_type = get_piece_type(target_piece);
             return MVV_LVA[target_piece_type as usize][piece_type as usize] as i32;
         }
-        1000000 - (history[move_.from][move_.to] as i32)
+        if killers[ply as usize][0]
+            .is_some_and(|k_mv| k_mv.from == move_.from && k_mv.to == move_.to)
+        {
+            return 100;
+        }
+        if killers[ply as usize][1]
+            .is_some_and(|k_mv| k_mv.from == move_.from && k_mv.to == move_.to)
+        {
+            return 150;
+        }
+        assert!(history[move_.from][move_.to] < 1000000);
+        1000150 - (history[move_.from][move_.to] as i32)
     })
 }

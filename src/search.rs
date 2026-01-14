@@ -44,6 +44,7 @@ fn quiescence(
     ply: u32,
     context: &mut SearchContext,
     history: &mut [[u32; 128]; 128],
+    killers: &mut [[Option<Move>; 2]; 64]
 ) -> i32 {
     if context.timer.should_stop(context.node_count) {
         return 0;
@@ -60,11 +61,11 @@ fn quiescence(
     let mut moves = position.generate_tactical_moves();
 
     // Move ordering
-    order_moves_inplace(position, &mut moves, ply, context, history, &None);
+    order_moves_inplace(position, &mut moves, ply, context, history, &None, killers);
     for move_ in moves {
         position.make_move(&move_, ply);
         context.node_count += 1;
-        let value = -quiescence(position, -beta, -alpha, ply + 1, context, history);
+        let value = -quiescence(position, -beta, -alpha, ply + 1, context, history, killers);
         position.unmake_move(&move_, ply);
         if value >= beta {
             return beta; // fail hard beta-cutoff
@@ -95,6 +96,7 @@ fn alphabeta(
     history: &mut [[u32; 128]; 128],
     tt: &mut TranspositionTable,
     pv_node: bool,
+    killers: &mut [[Option<Move>; 2]; 64]
 ) -> i32 {
     if ply > 0 && context.timer.should_stop(context.node_count) {
         return 0;
@@ -135,6 +137,7 @@ fn alphabeta(
             history,
             tt,
             false,
+            killers
         );
         position.unmake_null(copy_ep);
 
@@ -144,8 +147,9 @@ fn alphabeta(
     }
 
     // leaf node
-    if depth == 0 {
-        return quiescence(position, alpha, beta, ply + 1, context, history);
+    if depth <= 0 {
+        // TODO: Maybe not pass history and killers to quiesc? maybe just sort using mvv lva in there?
+        return quiescence(position, alpha, beta, ply + 1, context, history, killers);
     }
 
     let mut tt_move: Option<Move> = None;
@@ -163,7 +167,7 @@ fn alphabeta(
     let mut best_move: Option<Move> = None;
     let mut follow_pv = true;
     // Move ordering
-    order_moves_inplace(position, &mut moves, ply, context, history, &tt_move);
+    order_moves_inplace(position, &mut moves, ply, context, history, &tt_move, killers);
     for move_ in moves {
         position.make_move(&move_, ply);
 
@@ -187,6 +191,7 @@ fn alphabeta(
                 history,
                 tt,
                 follow_pv,
+                killers
             );
             position.unmake_move(&move_, ply);
             position.repetition_index -= 1;
@@ -195,6 +200,8 @@ fn alphabeta(
             if value >= beta {
                 if !move_.is_capture {
                     history[move_.from][move_.to] += depth * depth;
+                    killers[ply as usize][1] = killers[ply as usize][0];
+                    killers[ply as usize][0] = Some(move_);
                 }
                 tt.write_entry(position.hash, beta, NodeType::BetaBound, depth, Some(move_));
                 return beta; // fail hard beta-cutoff
@@ -244,6 +251,7 @@ pub fn search(
         let beta = 100000;
         let ply = 0;
         let mut history = [[0u32; 128]; 128];
+        let mut killers: [[Option<Move>; 2]; 64] = [[None; 2]; 64];
         let follow_pv = true;
         let value = alphabeta(
             position,
@@ -256,6 +264,7 @@ pub fn search(
             &mut history,
             tt,
             follow_pv,
+            &mut killers,
         );
 
         if !context.timer.stopped {

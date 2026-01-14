@@ -106,7 +106,7 @@ impl TranspositionTable {
             if entry.node_type == NodeType::BetaBound && entry.score >= beta {
                 return (Some(beta), entry.best_move);
             }
-            if entry.node_type == NodeType::AlphaBound && entry.score < alpha {
+            if entry.node_type == NodeType::AlphaBound && entry.score <= alpha {
                 return (Some(alpha), entry.best_move);
             }
         }
