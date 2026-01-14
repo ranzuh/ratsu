@@ -1,9 +1,4 @@
-use crate::{
-    movegen::Move,
-    piece::{EMPTY, get_piece_type},
-    position::Position,
-    search::SearchContext,
-};
+use crate::{movegen::Move, piece::get_piece_type, position::Position, search::SearchContext};
 
 #[rustfmt::skip]
 pub const MVV_LVA: [[u8; 7]; 7] = [
@@ -22,21 +17,21 @@ pub fn order_moves_inplace(
     ply: u32,
     info: &SearchContext,
     history: &mut [[u32; 128]; 128],
-    tt_move: Option<Move>,
+    tt_move: &Option<Move>,
 ) {
     // Check if we have a PV move at this ply
-    let pv_move = info.prev_pv.get(ply as usize).copied();
+    let pv_move = info.prev_pv.get(ply as usize);
 
     moves.sort_by_key(|&move_| {
-        if pv_move.is_some_and(|pv_m| pv_m == move_) {
+        if pv_move.is_some_and(|pv_m| pv_m.from == move_.from && pv_m.to == move_.to) {
             return -100;
         }
-        if tt_move.is_some_and(|tt_m| tt_m == move_) {
+        if tt_move.is_some_and(|tt_m| tt_m.from == move_.from && tt_m.to == move_.to) {
             return -99;
         }
-        let target_piece = pos.board[move_.to];
         // score most valuable victim and least valuable attacker (MVV-LVA)
-        if target_piece != EMPTY {
+        if move_.is_capture {
+            let target_piece = pos.board[move_.to];
             let piece = pos.board[move_.from];
             let piece_type = get_piece_type(piece);
             let target_piece_type = get_piece_type(target_piece);

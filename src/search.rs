@@ -60,7 +60,7 @@ fn quiescence(
     let mut moves = position.generate_tactical_moves();
 
     // Move ordering
-    order_moves_inplace(position, &mut moves, ply, context, history, None);
+    order_moves_inplace(position, &mut moves, ply, context, history, &None);
     for move_ in moves {
         position.make_move(&move_, ply);
         context.node_count += 1;
@@ -163,7 +163,7 @@ fn alphabeta(
     let mut best_move: Option<Move> = None;
     let mut follow_pv = true;
     // Move ordering
-    order_moves_inplace(position, &mut moves, ply, context, history, tt_move);
+    order_moves_inplace(position, &mut moves, ply, context, history, &tt_move);
     for move_ in moves {
         position.make_move(&move_, ply);
 
