@@ -166,12 +166,14 @@ fn alphabeta(
     let mut node_type = NodeType::AlphaBound;
     let mut best_move: Option<Move> = None;
     let mut follow_pv = true;
+    let mut legal_moves = 0;
     // Move ordering
     order_moves_inplace(position, &mut moves, ply, context, history, &tt_move, killers);
     for move_ in moves {
         position.make_move(&move_, ply);
 
         if is_legal(position) {
+            legal_moves += 1;
             // Local PV buffer for children
             let mut line = Vec::new();
 
@@ -180,19 +182,52 @@ fn alphabeta(
             // do not store to first rep index
             position.repetition_index += 1;
             position.repetition_stack[position.repetition_index] = position.hash;
-            let value = -alphabeta(
-                position,
-                -beta,
-                -alpha,
-                depth - 1,
-                ply + 1,
-                &mut line,
-                context,
-                history,
-                tt,
-                follow_pv,
-                killers
-            );
+            let mut value;
+            if legal_moves == 1 {
+                value = -alphabeta(
+                    position,
+                    -beta,
+                    -alpha,
+                    depth - 1,
+                    ply + 1,
+                    &mut line,
+                    context,
+                    history,
+                    tt,
+                    follow_pv,
+                    killers
+                );
+            } else {
+                value = -alphabeta(
+                    position,
+                    -alpha-1,
+                    -alpha,
+                    depth - 1,
+                    ply + 1,
+                    &mut line,
+                    context,
+                    history,
+                    tt,
+                    follow_pv,
+                    killers
+                );
+                if value > alpha && value < beta {
+                    value = -alphabeta(
+                        position,
+                        -beta,
+                        -alpha,
+                        depth - 1,
+                        ply + 1,
+                        &mut line,
+                        context,
+                        history,
+                        tt,
+                        follow_pv,
+                        killers
+                    );
+                }
+            }
+            
             position.unmake_move(&move_, ply);
             position.repetition_index -= 1;
             follow_pv = false;
