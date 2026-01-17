@@ -1,7 +1,4 @@
-use std::{
-    io,
-    time::{Duration, Instant},
-};
+use std::{io, time::Instant};
 
 use regex::Regex;
 
@@ -12,7 +9,7 @@ use crate::{
     perft::run_perft,
     piece::{BISHOP, BLACK, KNIGHT, QUEEN, ROOK, WHITE},
     position::Position,
-    search::{Timer, search},
+    search::Search,
 };
 
 fn read_line() -> String {
@@ -143,18 +140,11 @@ fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) 
         "movetime is zero, check that time command is for correct side"
     );
 
-    let duration = Duration::from_millis(movetime);
-
     let start = Instant::now();
-    let timer = Timer::reset(duration);
-    let search_context = search(position, depth, timer, tt);
+    let (pv, node_count) = Search::run(position, tt, depth, movetime);
     let duration = start.elapsed().as_secs_f32();
-    let node_count = search_context.node_count;
     let nodes_per_sec = (node_count as f32 / duration) as u64;
-    let best_move = search_context
-        .prev_pv
-        .first()
-        .expect("pv should have moves");
+    let best_move = pv.first().expect("pv should have moves");
 
     println!("info nodes {}", node_count);
     println!("info nps {}", nodes_per_sec);

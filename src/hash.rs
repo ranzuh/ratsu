@@ -96,20 +96,20 @@ impl TranspositionTable {
         alpha: i32,
         beta: i32,
         depth: u32,
-    ) -> (Option<i32>, Option<Move>) {
+    ) -> (Option<i32>, Option<&Move>) {
         let idx = (hash_key as usize) % self.size;
         let entry = &self.entries[idx];
         if entry.hash_key == hash_key && entry.depth >= depth {
             if entry.node_type == NodeType::Exact {
-                return (Some(entry.score), entry.best_move);
+                return (Some(entry.score), entry.best_move.as_ref());
             }
             if entry.node_type == NodeType::BetaBound && entry.score >= beta {
-                return (Some(beta), entry.best_move);
+                return (Some(beta), entry.best_move.as_ref());
             }
             if entry.node_type == NodeType::AlphaBound && entry.score <= alpha {
-                return (Some(alpha), entry.best_move);
+                return (Some(alpha), entry.best_move.as_ref());
             }
         }
-        (None, entry.best_move)
+        (None, entry.best_move.as_ref())
     }
 }

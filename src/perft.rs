@@ -35,11 +35,11 @@ pub fn perft(depth: u32, position: &mut Position, counts: &mut PerftCounts, divi
             }
 
             let result = perft(depth - 1, position, counts, false);
-            
+
             if divide {
                 println!("{} {}", get_move_string(&move_), result);
             }
-            
+
             nodes += result;
         }
         position.unmake_move(&move_, depth);

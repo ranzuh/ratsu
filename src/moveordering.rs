@@ -1,4 +1,4 @@
-use crate::{movegen::Move, piece::get_piece_type, position::Position, search::SearchContext};
+use crate::{movegen::Move, piece::get_piece_type, position::Position};
 
 #[rustfmt::skip]
 pub const MVV_LVA: [[u8; 7]; 7] = [
@@ -15,14 +15,11 @@ pub fn order_moves_inplace(
     pos: &Position,
     moves: &mut [Move],
     ply: u32,
-    info: &SearchContext,
-    history: &mut [[u32; 128]; 128],
-    tt_move: &Option<Move>,
-    killers: &mut [[Option<Move>; 2]; 64],
+    pv_move: Option<&Move>,
+    tt_move: Option<&Move>,
+    killers: [[Option<Move>; 2]; 64],
+    history: [[u32; 128]; 128],
 ) {
-    // Check if we have a PV move at this ply
-    let pv_move = info.prev_pv.get(ply as usize);
-
     moves.sort_by_cached_key(|&move_| {
         if pv_move.is_some_and(|pv_m| pv_m.from == move_.from && pv_m.to == move_.to) {
             return -100;
