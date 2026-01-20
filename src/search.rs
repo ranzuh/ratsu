@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    cmp::min,
+    time::{Duration, Instant},
+};
 
 use crate::{
     evaluation::evaluate,
@@ -21,6 +24,10 @@ impl Timer {
             max_duration,
             stopped: false,
         }
+    }
+
+    pub fn elapsed(&self) -> Duration {
+        self.start_time.elapsed()
     }
 
     pub fn should_stop(&mut self, node_count: u64) -> bool {
@@ -88,8 +95,9 @@ impl<'a> Search<'a> {
                     .collect::<Vec<_>>()
                     .join(" ");
                 println!(
-                    "info score cp {value} depth {d} nodes {} pv {pv_string}",
-                    self.node_count
+                    "info depth {d} score cp {value} nodes {} nps {} pv {pv_string}",
+                    self.node_count,
+                    (self.node_count as f32 / self.timer.elapsed().as_secs_f32()) as u64
                 );
             }
         }
@@ -256,7 +264,9 @@ impl<'a> Search<'a> {
 
                 if value >= beta {
                     if !move_.is_capture {
-                        self.history[move_.from][move_.to] += depth * depth;
+                        let hist_score = self.history[move_.from][move_.to];
+                        self.history[move_.from][move_.to] =
+                            min(hist_score + depth * depth, 999999);
                         self.killers[ply as usize][1] = self.killers[ply as usize][0];
                         self.killers[ply as usize][0] = Some(move_);
                     }
