@@ -1,37 +1,6 @@
 use rustchess::uci::uci_loop;
 
 fn main() {
-    // let custom_fen = "2n1k3/1P6/8/8/8/8/8/4K3 w - - 0 1";
-    // let mut pos = Position::from_fen(custom_fen);
-    // pos.print();
-    // let moves = pos.generate_legal_moves();
-    // for move_ in &moves {
-    //     println!("{}", get_move_string(&move_));
-    // }
-    // pos.make_move(&moves[4]);
-    // pos.print();
-    // let move_ = Move {
-    //     from: square,
-    //     to: target_square,
-    //     promoted_piece: None,
-    //     is_capture: true,
-    //     is_enpassant: true,
-    //     is_double_pawn: false,
-    //     is_castling: false,
-    // };
-    // let custom_fen = "r4qk1/1Q4p1/2pp3p/4p1n1/2PbP1B1/pP1P4/P3R3/1RB4K b - - 0 29";
-    // let mut pos = Position::from_fen(custom_fen);
-    // pos.print();
-    // //println!("{}", evaluate(&pos));
-    // let mut nodecount = 0;
-    // let start = Instant::now();
-    // let best_move = search(&mut pos, 3, &mut nodecount);
-    // let duration = start.elapsed().as_secs_f32();
-    // let nodes_per_sec = (nodecount as f32 / duration) as u64;
-    // println!("Best move: {}", get_move_string(&best_move));
-    // println!("Move count: {}", nodecount);
-    // println!("Nodes_per_sec: {}", nodes_per_sec);
-
     uci_loop();
 }
 

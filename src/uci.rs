@@ -1,4 +1,4 @@
-use std::{io, time::Instant};
+use std::io;
 
 use regex::Regex;
 
@@ -87,14 +87,12 @@ fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) 
     // default depth
     let mut depth: u32 = 64;
 
-    let movetime: u64;
     let mut base: u64 = 0;
     let mut increment: u64 = 0;
 
     if input.contains("depth") {
         let index = input.find("depth").unwrap();
         depth = input[index + 6..].trim().parse::<u32>().unwrap();
-        println!("depth: {depth}");
     }
     if input.contains("wtime") && position.is_white_turn {
         let re = Regex::new(r"[\s\S]+wtime (\d+)").unwrap();
@@ -102,7 +100,6 @@ fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) 
             return;
         };
         base = caps[1].parse::<u64>().unwrap();
-        println!("wtime: {base}");
     }
     if input.contains("winc") && position.is_white_turn {
         let re = Regex::new(r"[\s\S]+winc (\d+)").unwrap();
@@ -110,7 +107,6 @@ fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) 
             return;
         };
         increment = caps[1].parse::<u64>().unwrap();
-        println!("winc: {increment}");
     }
     if input.contains("btime") && !position.is_white_turn {
         let re = Regex::new(r"[\s\S]+btime (\d+)").unwrap();
@@ -118,7 +114,6 @@ fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) 
             return;
         };
         base = caps[1].parse::<u64>().unwrap();
-        println!("btime: {base}");
     }
     if input.contains("binc") && !position.is_white_turn {
         let re = Regex::new(r"[\s\S]+binc (\d+)").unwrap();
@@ -126,28 +121,20 @@ fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) 
             return;
         };
         increment = caps[1].parse::<u64>().unwrap();
-        println!("binc: {increment}");
     }
-    if input.contains("movetime") {
+    let movetime: u64 = if input.contains("movetime") {
         let index = input.find("movetime").unwrap();
-        movetime = input[index + 9..].trim().parse::<u64>().unwrap();
-        println!("movetime: {movetime}");
+        input[index + 9..].trim().parse::<u64>().unwrap()
     } else {
-        movetime = base / 20 + increment / 2;
-    }
+        base / 20 + increment / 2
+    };
     assert_ne!(
         movetime, 0,
         "movetime is zero, check that time command is for correct side"
     );
 
-    let start = Instant::now();
-    let (pv, node_count) = Search::run(position, tt, depth, movetime);
-    let duration = start.elapsed().as_secs_f32();
-    let nodes_per_sec = (node_count as f32 / duration) as u64;
+    let (pv, _node_count) = Search::run(position, tt, depth, movetime);
     let best_move = pv.first().expect("pv should have moves");
-
-    println!("info nodes {}", node_count);
-    println!("info nps {}", nodes_per_sec);
     println!("bestmove {}", get_move_string(best_move));
 }
 
@@ -169,6 +156,11 @@ pub fn uci_loop() {
     let mut position = Position::from_fen(START_POSITION_FEN);
     let mut tt = TranspositionTable::new(64);
 
+    let version = env!("CARGO_PKG_VERSION");
+    println!("id name rustchess {version}");
+    println!("id author Eetu Rantala");
+    println!("uciok");
+
     loop {
         let input = read_line();
 
@@ -185,14 +177,14 @@ pub fn uci_loop() {
         } else if input.contains("go") {
             handle_go(&input, &mut position, &mut tt);
         } else if input.contains("perft") {
-            // use like: perft 5
+            // usage: perft 5
             let depth = input[6..].trim().parse::<u32>().unwrap();
             run_perft(depth, &mut position);
         } else if input.contains("stop") {
             println!("Handle stop")
             // stops calculating as soon as possible
         } else if input.contains("uci") {
-            println!("id name rustchess");
+            println!("id name rustchess {version}");
             println!("id author Eetu Rantala");
             println!("uciok");
         }
