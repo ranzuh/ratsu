@@ -1,4 +1,4 @@
-use rustchess::{
+use ratsu::{
     perft::{PerftCounts, perft},
     position::Position,
 };

@@ -1,4 +1,4 @@
-# RustChess
+# Ratsu
 
 Quick build & run
 

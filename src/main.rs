@@ -1,4 +1,4 @@
-use rustchess::uci::uci_loop;
+use ratsu::uci::uci_loop;
 
 fn main() {
     uci_loop();

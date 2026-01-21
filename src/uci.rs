@@ -157,7 +157,9 @@ pub fn uci_loop() {
     let mut tt = TranspositionTable::new(64);
 
     let version = env!("CARGO_PKG_VERSION");
-    println!("id name rustchess {version}");
+    let name = "Ratsu";
+
+    println!("id name {name} {version}");
     println!("id author Eetu Rantala");
     println!("uciok");
 
@@ -184,7 +186,7 @@ pub fn uci_loop() {
             println!("Handle stop")
             // stops calculating as soon as possible
         } else if input.contains("uci") {
-            println!("id name rustchess {version}");
+            println!("id name {name} {version}");
             println!("id author Eetu Rantala");
             println!("uciok");
         }
