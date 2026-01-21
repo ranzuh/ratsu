@@ -1,4 +1,4 @@
-use rustchess::{
+use ratsu::{
     hash::TranspositionTable, movegen::get_move_string, position::Position, search::Search,
 };
 

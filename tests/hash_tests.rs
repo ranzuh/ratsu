@@ -1,4 +1,4 @@
-use rustchess::{START_POSITION_FEN, position::Position, uci::handle_position};
+use ratsu::{START_POSITION_FEN, position::Position, uci::handle_position};
 
 #[test]
 fn test_incremental_hash_changes() {
