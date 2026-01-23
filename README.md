@@ -42,3 +42,10 @@ Format code
 ```shell
 cargo fmt
 ```
+
+## Credit
+Thanks to
+- Maksim Korzh for his Bitboard CHESS ENGINE in C and 0x88 MOVE GENERATOR youtube series which inspired me to start programming chess engines.
+- Chess Programming Wiki for all the knowledge
+- Authors of TSCP, Blunder, Rustic
+- For folks at chess programming discord servers
