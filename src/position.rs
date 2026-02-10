@@ -15,7 +15,7 @@ pub struct Position {
     pub king_squares: [usize; 2], // white, black
     pub keys: ZobristKeys,
     pub hash: u64,
-    pub repetition_stack: [u64; 512],
+    pub repetition_stack: [u64; 1024],
     pub repetition_index: usize,
     pub fifty: u8,
 
@@ -73,7 +73,7 @@ impl Position {
             king_squares: [127, 127], // we dont know yet
             keys: ZobristKeys::new(),
             hash: 0u64, // not generated yet
-            repetition_stack: [0u64; 512],
+            repetition_stack: [0u64; 1024],
             repetition_index: 0,
             fifty: 0,
 

@@ -93,6 +93,7 @@ const PASSED_PAWN_BONUS: i32 = 20;
 const ROOK_SEMI_OPEN_FILE_BONUS: i32 = 10;
 const ROOK_OPEN_FILE_BONUS: i32 = 15;
 const ROOK_ON_SEVENTH_BONUS: i32 = 20;
+const BISHOP_PAIR_BONUS: i32 = 30;
 
 fn init_pawn_ranks(pos: &Position) -> ([u8; 10], [u8; 10]) {
     let mut white_pawn_ranks = [0u8; 10];
@@ -280,6 +281,8 @@ pub fn evaluate(position: &Position) -> i32 {
     let mut score = 0;
     let side = if position.is_white_turn { 1 } else { -1 };
     let (white_pawn_ranks, black_pawn_ranks) = init_pawn_ranks(position);
+    let mut white_bishops = 0;
+    let mut black_bishops = 0;
 
     for rank in 0..8 {
         for file in 0..8 {
@@ -292,6 +295,13 @@ pub fn evaluate(position: &Position) -> i32 {
 
             score += get_piece_table_score(square, piece, piece_type);
             score += get_piece_material_score(piece);
+            if piece_type == BISHOP {
+                if get_piece_color(piece) == WHITE {
+                    white_bishops += 1;
+                } else {
+                    black_bishops += 1;
+                }
+            }
             if piece_type == PAWN {
                 score += get_pawn_structure_score(
                     &white_pawn_ranks,
@@ -311,6 +321,12 @@ pub fn evaluate(position: &Position) -> i32 {
                 );
             }
         }
+    }
+    if white_bishops >= 2 {
+        score += BISHOP_PAIR_BONUS;
+    }
+    if black_bishops >= 2 {
+        score -= BISHOP_PAIR_BONUS;
     }
     score * side
 }
