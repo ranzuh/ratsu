@@ -112,8 +112,8 @@ impl<'a> Search<'a> {
             ply,
             pv_move,
             tt_move,
-            self.killers,
-            self.history,
+            &self.killers,
+            &self.history,
         );
     }
 
