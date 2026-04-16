@@ -231,8 +231,40 @@ impl<'a> Search<'a> {
                     value = -self.alphabeta(-beta, -alpha, depth - 1, ply + 1, &mut line, pv_node);
                 } else {
                     // Search other moves with null window
-                    value =
-                        -self.alphabeta(-alpha - 1, -alpha, depth - 1, ply + 1, &mut line, false);
+
+                    let mut reduction = 0;
+                    if depth >= 3
+                        && legal_moves > 4
+                        && !in_check
+                        && !pv_node
+                        && !move_.is_capture
+                        && !move_.promoted_piece.is_some()
+                    {
+                        reduction = 1;
+                        // if legal_moves > 6 {
+                        //     reduction = depth / 3;
+                        // }
+                    }
+                    value = -self.alphabeta(
+                        -alpha - 1,
+                        -alpha,
+                        depth - 1 - reduction,
+                        ply + 1,
+                        &mut line,
+                        false,
+                    );
+
+                    if reduction > 0 && value > alpha {
+                        value = -self.alphabeta(
+                            -alpha - 1,
+                            -alpha,
+                            depth - 1,
+                            ply + 1,
+                            &mut line,
+                            false,
+                        );
+                    }
+
                     if value > alpha && value < beta {
                         // didn't stay inside the window
                         // need to re-search with full window
