@@ -83,8 +83,7 @@ impl<'a> Search<'a> {
             let alpha = -1000000;
             let beta = 1000000;
             let ply = 0;
-            let follow_pv = true;
-            let value = self.alphabeta(alpha, beta, d, ply, &mut pv, follow_pv);
+            let value = self.alphabeta(alpha, beta, d, ply, &mut pv, true);
 
             if !self.timer.stopped {
                 self.prev_pv = pv.clone();
@@ -212,7 +211,6 @@ impl<'a> Search<'a> {
         let mut moves = self.position.generate_pseudo_moves();
         let mut node_type = NodeType::AlphaBound;
         let mut best_move: Option<Move> = None;
-        let mut follow_pv = true;
         let mut legal_moves = 0;
         // Move ordering
         self.order_moves_inplace(&mut moves, ply, tt_move);
@@ -232,35 +230,20 @@ impl<'a> Search<'a> {
                 // Principal variation search
                 if legal_moves == 1 {
                     // Search PV move with full window
-                    value =
-                        -self.alphabeta(-beta, -alpha, depth - 1, ply + 1, &mut line, follow_pv);
+                    value = -self.alphabeta(-beta, -alpha, depth - 1, ply + 1, &mut line, pv_node);
                 } else {
                     // Search other moves with null window
-                    value = -self.alphabeta(
-                        -alpha - 1,
-                        -alpha,
-                        depth - 1,
-                        ply + 1,
-                        &mut line,
-                        follow_pv,
-                    );
+                    value =
+                        -self.alphabeta(-alpha - 1, -alpha, depth - 1, ply + 1, &mut line, false);
                     if value > alpha && value < beta {
                         // didn't stay inside the window
                         // need to re-search with full window
-                        value = -self.alphabeta(
-                            -beta,
-                            -alpha,
-                            depth - 1,
-                            ply + 1,
-                            &mut line,
-                            follow_pv,
-                        );
+                        value = -self.alphabeta(-beta, -alpha, depth - 1, ply + 1, &mut line, true);
                     }
                 }
 
                 self.position.unmake_move(&move_, ply);
                 self.position.repetition_index -= 1;
-                follow_pv = false;
 
                 if value >= beta {
                     if !move_.is_capture {
