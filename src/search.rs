@@ -115,6 +115,8 @@ impl<'a> Search<'a> {
     }
 
     fn quiescence(&mut self, mut alpha: i32, beta: i32, ply: u32) -> i32 {
+        self.node_count += 1;
+
         if self.timer.should_stop(self.node_count) {
             return 0;
         }
@@ -133,7 +135,12 @@ impl<'a> Search<'a> {
         self.order_moves_inplace(&mut moves, ply, None);
         for move_ in moves {
             self.position.make_move(&move_, ply);
-            self.node_count += 1;
+
+            if !is_legal(self.position) {
+                self.position.unmake_move(&move_, ply);
+                continue;
+            }
+
             let value = -self.quiescence(-beta, -alpha, ply + 1);
             self.position.unmake_move(&move_, ply);
             if value >= beta {
@@ -155,6 +162,8 @@ impl<'a> Search<'a> {
         pv: &mut Vec<Move>,
         pv_node: bool,
     ) -> i32 {
+        self.node_count += 1;
+
         if ply > 0 && self.timer.should_stop(self.node_count) {
             return 0;
         }
@@ -215,96 +224,90 @@ impl<'a> Search<'a> {
         for move_ in moves {
             self.position.make_move(&move_, ply);
 
-            if is_legal(self.position) {
-                legal_moves += 1;
-                // Local PV buffer for children
-                let mut line = Vec::new();
-                self.node_count += 1;
-                // do not store to first rep index
-                self.position.repetition_index += 1;
-                self.position.repetition_stack[self.position.repetition_index] = self.position.hash;
-                let mut value;
-
-                // Principal variation search
-                if legal_moves == 1 {
-                    // Search PV move with full window
-                    value = -self.alphabeta(-beta, -alpha, depth - 1, ply + 1, &mut line, pv_node);
-                } else {
-                    // Search other moves with null window
-
-                    let mut reduction = 0;
-                    if depth >= 3
-                        && legal_moves > 4
-                        && !in_check
-                        && !pv_node
-                        && !move_.is_capture
-                        && !move_.promoted_piece.is_some()
-                    {
-                        reduction = 1;
-                        // if legal_moves > 6 {
-                        //     reduction = depth / 3;
-                        // }
-                    }
-                    value = -self.alphabeta(
-                        -alpha - 1,
-                        -alpha,
-                        depth - 1 - reduction,
-                        ply + 1,
-                        &mut line,
-                        false,
-                    );
-
-                    if reduction > 0 && value > alpha {
-                        value = -self.alphabeta(
-                            -alpha - 1,
-                            -alpha,
-                            depth - 1,
-                            ply + 1,
-                            &mut line,
-                            false,
-                        );
-                    }
-
-                    if value > alpha && value < beta {
-                        // didn't stay inside the window
-                        // need to re-search with full window
-                        value = -self.alphabeta(-beta, -alpha, depth - 1, ply + 1, &mut line, true);
-                    }
-                }
-
+            if !is_legal(self.position) {
                 self.position.unmake_move(&move_, ply);
-                self.position.repetition_index -= 1;
+                continue;
+            }
 
-                if value >= beta {
-                    if !move_.is_capture {
-                        let hist_score = self.history[move_.from][move_.to];
-                        self.history[move_.from][move_.to] =
-                            min(hist_score + depth * depth, 999999);
-                        self.killers[ply as usize][1] = self.killers[ply as usize][0];
-                        self.killers[ply as usize][0] = Some(move_);
-                    }
-                    self.tt.write_entry(
-                        self.position.hash,
-                        beta,
-                        NodeType::BetaBound,
-                        depth,
-                        Some(move_),
-                    );
-                    return beta; // fail hard beta-cutoff
-                }
-                if value > alpha {
-                    alpha = value; // new lower bound -> pv move
+            legal_moves += 1;
+            // Local PV buffer for children
+            let mut line = Vec::new();
 
-                    // Update PV: prepend current move to child's PV
-                    pv.clear();
-                    pv.push(move_);
-                    pv.append(&mut line);
+            // do not store to first rep index
+            self.position.repetition_index += 1;
+            self.position.repetition_stack[self.position.repetition_index] = self.position.hash;
+            let mut value;
 
-                    node_type = NodeType::Exact;
-                    best_move = Some(move_);
-                }
+            // Principal variation search
+            if legal_moves == 1 {
+                // Search PV move with full window
+                value = -self.alphabeta(-beta, -alpha, depth - 1, ply + 1, &mut line, pv_node);
             } else {
-                self.position.unmake_move(&move_, ply);
+                // Search other moves with null window
+
+                let mut reduction = 0;
+                if depth >= 3
+                    && legal_moves > 4
+                    && !in_check
+                    && !pv_node
+                    && !move_.is_capture
+                    && !move_.promoted_piece.is_some()
+                {
+                    reduction = 1;
+                    // if legal_moves > 6 {
+                    //     reduction = depth / 3;
+                    // }
+                }
+                value = -self.alphabeta(
+                    -alpha - 1,
+                    -alpha,
+                    depth - 1 - reduction,
+                    ply + 1,
+                    &mut line,
+                    false,
+                );
+
+                if reduction > 0 && value > alpha {
+                    value =
+                        -self.alphabeta(-alpha - 1, -alpha, depth - 1, ply + 1, &mut line, false);
+                }
+
+                if value > alpha && value < beta {
+                    // didn't stay inside the window
+                    // need to re-search with full window
+                    value = -self.alphabeta(-beta, -alpha, depth - 1, ply + 1, &mut line, true);
+                }
+            }
+
+            self.position.unmake_move(&move_, ply);
+            self.position.repetition_index -= 1;
+
+            if value >= beta {
+                if !move_.is_capture {
+                    let hist_score = self.history[move_.from][move_.to];
+                    self.history[move_.from][move_.to] = min(hist_score + depth * depth, 999999);
+                    self.killers[ply as usize][1] = self.killers[ply as usize][0];
+                    self.killers[ply as usize][0] = Some(move_);
+                }
+                self.tt.write_entry(
+                    self.position.hash,
+                    beta,
+                    NodeType::BetaBound,
+                    depth,
+                    Some(move_),
+                );
+                return beta; // fail hard beta-cutoff
+            }
+            if value > alpha {
+                alpha = value; // new lower bound -> pv move
+
+                // Update PV: prepend current move to child's PV
+                pv.clear();
+                pv.push(move_);
+                pv.append(&mut line);
+
+                node_type = NodeType::Exact;
+                best_move = Some(move_);
             }
         }
         if legal_moves == 0 {
