@@ -95,7 +95,7 @@ const ROOK_OPEN_FILE_BONUS: i32 = 15;
 const ROOK_ON_SEVENTH_BONUS: i32 = 20;
 const BISHOP_PAIR_BONUS: i32 = 35;
 
-fn init_pawn_ranks(pos: &Position) -> ([u8; 10], [u8; 10]) {
+pub fn init_pawn_ranks(pos: &Position) -> ([u8; 10], [u8; 10]) {
     let mut white_pawn_ranks = [0u8; 10];
     let mut black_pawn_ranks = [7u8; 10];
 
@@ -201,7 +201,7 @@ fn get_rook_score(
     score
 }
 
-const fn flip_board<T: Copy>(board: &[T; 64]) -> [T; 64] {
+pub const fn flip_board<T: Copy>(board: &[T; 64]) -> [T; 64] {
     let mut flipped = *board;
     let mut rank = 0;
     while rank < 4 {
