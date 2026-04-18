@@ -4,5 +4,10 @@ version = "1.0.0"
 edition = "2024"
 authors = ["Eetu Rantala"]
 
+[lib]
+name = "ratsu"
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 regex = "1.12.2"
+pyo3 = { version = "0.28", features = ["extension-module"] }
