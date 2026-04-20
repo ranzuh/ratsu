@@ -104,12 +104,10 @@ impl<'a> Search<'a> {
     }
 
     fn order_moves_inplace(&self, moves: &mut [Move], ply: u32, tt_move: Option<&Move>) {
-        let pv_move = self.prev_pv.get(ply as usize);
         moveordering::order_moves_inplace(
             self.position,
             moves,
             ply,
-            pv_move,
             tt_move,
             &self.killers,
             &self.history,

@@ -15,15 +15,11 @@ pub fn order_moves_inplace(
     pos: &Position,
     moves: &mut [Move],
     ply: u32,
-    pv_move: Option<&Move>,
     tt_move: Option<&Move>,
     killers: &[[Option<Move>; 2]; 64],
     history: &[[u32; 128]; 128],
 ) {
     moves.sort_by_cached_key(|&move_| {
-        if pv_move.is_some_and(|pv_m| pv_m.from == move_.from && pv_m.to == move_.to) {
-            return -100;
-        }
         if tt_move.is_some_and(|tt_m| tt_m.from == move_.from && tt_m.to == move_.to) {
             return -99;
         }
