@@ -6,6 +6,7 @@ pub fn get_square_in_64(square_in_128: usize) -> usize {
     get_rank(square_in_128) * 8 + get_file(square_in_128)
 }
 
+#[derive(Clone)]
 pub struct Position {
     pub board: [u8; 128],
     pub is_white_turn: bool,

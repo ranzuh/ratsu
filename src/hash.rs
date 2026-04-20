@@ -17,6 +17,7 @@ impl Xorshift64 {
     }
 }
 
+#[derive(Clone)]
 pub struct ZobristKeys {
     pub piece_keys: [[u64; 24]; 64],
     pub black_to_move_key: u64,

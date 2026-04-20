@@ -8,6 +8,7 @@ use crate::{
 };
 
 use pyo3::prelude::*;
+use rayon::prelude::*;
 
 #[pyfunction]
 fn eval_fen(fen: &str, weights: Vec<i32>) -> PyResult<i32> {
@@ -16,9 +17,38 @@ fn eval_fen(fen: &str, weights: Vec<i32>) -> PyResult<i32> {
     Ok(evaluate_with_weights(&pos, &w))
 }
 
+#[pyfunction]
+fn compute_mse(positions: Vec<(String, f32)>, weights: Vec<i32>, k: f32) -> PyResult<f32> {
+    let w = Weights::from_vec(&weights);
+
+    const SCALE: f64 = 1e9;
+    
+    // NOTE: Addition of floats is non-associative.
+    // If using parallel iterator like Rayon, special care must be taken
+    // to ensure compute_mse is deterministic.
+    let total_error_int: i128 = positions.par_iter()
+        .map(|(fen, result)| {
+            let pos = Position::from_fen(fen);
+            let score_side_to_move = evaluate_with_weights(&pos, &w) as f32;
+            // Convert to white's perspective
+            let score = if pos.is_white_turn { score_side_to_move } else { -score_side_to_move };
+            let sigmoid = 1.0 / (1.0 + 10f32.powf(-k * score / 400.0));
+            
+            let error =(result - sigmoid).powi(2);
+
+            (error as f64 * SCALE) as i128
+        })
+        .sum();
+    
+    let final_mse = (total_error_int as f64 / SCALE) / positions.len() as f64;
+    
+    Ok(final_mse as f32)
+}
+
 #[pymodule]
 fn ratsu(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(eval_fen, m)?)?;
+    m.add_function(wrap_pyfunction!(compute_mse, m)?)?;
     Ok(())
 }
 
