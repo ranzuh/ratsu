@@ -84,7 +84,7 @@ const KING_PST: [i32; 64] = [
     -23,   -1,    7,   12,   13,   13,    9,   -8,
     -16,   -3,    3,   -5,   -3,    7,    8,   -5,
     -36,    4,   -1,  -30,   -6,  -21,    2,  -18,
-];  
+];
 
 const DOUBLED_PAWN_PENALTY: i32 = 8;
 const ISOLATED_PAWN_PENALTY: i32 = 14;
