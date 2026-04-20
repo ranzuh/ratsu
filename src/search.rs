@@ -312,7 +312,7 @@ impl<'a> Search<'a> {
         }
         if legal_moves == 0 {
             if in_check {
-                return -50000;
+                return -50000 + ply as i32;
             } else {
                 return 0;
             }
