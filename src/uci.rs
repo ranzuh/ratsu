@@ -133,7 +133,7 @@ fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) 
         "movetime is zero, check that time command is for correct side"
     );
 
-    let (pv, _node_count) = Search::run(position, tt, depth, movetime);
+    let (pv, _node_count) = Search::run(position, tt, depth, movetime, true);
     let best_move = pv.first().expect("pv should have moves");
     println!("bestmove {}", get_move_string(best_move));
 }

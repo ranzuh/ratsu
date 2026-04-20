@@ -54,6 +54,7 @@ pub struct Search<'a> {
     prev_pv: Vec<Move>,
     history: [[u32; 128]; 128],
     killers: [[Option<Move>; 2]; 64],
+    use_nmp: bool,
 }
 
 impl<'a> Search<'a> {
@@ -62,6 +63,7 @@ impl<'a> Search<'a> {
         tt: &'a mut TranspositionTable,
         depth: u32,
         movetime: u64,
+        use_nmp: bool,
     ) -> (Vec<Move>, u64) {
         tt.clear();
         let max_duration = Duration::from_millis(movetime);
@@ -73,6 +75,7 @@ impl<'a> Search<'a> {
             prev_pv: Vec::new(),
             history: [[0u32; 128]; 128],
             killers: [[None; 2]; 64],
+            use_nmp,
         };
         search.search(depth)
     }
@@ -187,7 +190,7 @@ impl<'a> Search<'a> {
         }
 
         // null move pruning
-        if depth >= 3 && !in_check && ply > 0 && !pv_node {
+        if self.use_nmp && depth >= 3 && !in_check && ply > 0 && !pv_node {
             let copy_ep = self.position.enpassant_square;
             self.position.make_null();
 
