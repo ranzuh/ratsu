@@ -1,5 +1,5 @@
 use std::{
-    cmp::min,
+    cmp::{max, min},
     time::{Duration, Instant},
 };
 
@@ -81,12 +81,33 @@ impl<'a> Search<'a> {
     }
 
     fn search(&mut self, depth: u32) -> (Vec<Move>, u64) {
+        let mut prev_score = 0;
         for d in 1..depth + 1 {
             let mut pv: Vec<Move> = Vec::new();
-            let alpha = -1000000;
-            let beta = 1000000;
-            let ply = 0;
-            let value = self.alphabeta(alpha, beta, d, ply, &mut pv, true);
+
+            // Aspiration windows
+            let mut delta = 25;
+            let mut alpha = prev_score - delta;
+            let mut beta = prev_score + delta;
+
+            let mut value = 0;
+
+            // Widen the aspiration window until the score is within the bounds or we hit a time limit
+            while !self.timer.stopped {
+                let ply = 0;
+                value = self.alphabeta(alpha, beta, d, ply, &mut pv, true);
+
+                if value <= alpha {
+                    alpha = max(alpha - delta, -1000000);
+                    delta *= 2;
+                } else if value >= beta {
+                    beta = min(beta + delta, 1000000);
+                    delta *= 2;
+                } else {
+                    prev_score = value;
+                    break;
+                }
+            }
 
             if !self.timer.stopped {
                 self.prev_pv = pv.clone();
