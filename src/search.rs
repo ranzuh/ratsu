@@ -1,5 +1,6 @@
 use std::{
-    cmp::{max, min},
+    cmp::max,
+    cmp::min,
     time::{Duration, Instant},
 };
 
@@ -46,10 +47,37 @@ pub fn is_legal(position: &mut Position) -> bool {
     is_legal
 }
 
+fn print_search_stats(stats: &SearchStats) {
+    let first_move_cut_pct = if stats.cut_nodes > 0 {
+        stats.first_move_cuts as f64 / stats.cut_nodes as f64 * 100.0
+    } else {
+        0.0
+    };
+    let avg_cut_move_index = if stats.cut_nodes > 0 {
+        stats.cut_move_index_sum as f64 / stats.cut_nodes as f64
+    } else {
+        0.0
+    };
+    println!(
+        "info first_move_cut_pct {:.2} avg_cut_move_index {:.2} pvnodes {} cutnodes {} allnodes {}",
+        first_move_cut_pct, avg_cut_move_index, stats.pv_nodes, stats.cut_nodes, stats.all_nodes
+    );
+}
+
+#[derive(Default, Debug)]
+struct SearchStats {
+    node_count: u64,
+    pv_nodes: u64,
+    cut_nodes: u64,
+    all_nodes: u64,
+    first_move_cuts: u64,
+    cut_move_index_sum: u64,
+}
+
 pub struct Search<'a> {
     position: &'a mut Position,
     tt: &'a mut TranspositionTable,
-    node_count: u64,
+    stats: SearchStats,
     timer: Timer,
     prev_pv: Vec<Move>,
     history: [[u32; 128]; 128],
@@ -70,7 +98,7 @@ impl<'a> Search<'a> {
         let mut search = Self {
             position,
             tt,
-            node_count: 0,
+            stats: SearchStats::default(),
             timer: Timer::new(max_duration),
             prev_pv: Vec::new(),
             history: [[0u32; 128]; 128],
@@ -119,12 +147,13 @@ impl<'a> Search<'a> {
                     .join(" ");
                 println!(
                     "info depth {d} score cp {value} nodes {} nps {} pv {pv_string}",
-                    self.node_count,
-                    (self.node_count as f32 / self.timer.elapsed().as_secs_f32()) as u64
+                    self.stats.node_count,
+                    (self.stats.node_count as f32 / self.timer.elapsed().as_secs_f32()) as u64
                 );
+                print_search_stats(&self.stats);
             }
         }
-        (self.prev_pv.clone(), self.node_count)
+        (self.prev_pv.clone(), self.stats.node_count)
     }
 
     fn order_moves_inplace(&self, moves: &mut [Move], ply: u32, tt_move: Option<&Move>) {
@@ -139,9 +168,9 @@ impl<'a> Search<'a> {
     }
 
     fn quiescence(&mut self, mut alpha: i32, beta: i32, ply: u32) -> i32 {
-        self.node_count += 1;
+        self.stats.node_count += 1;
 
-        if self.timer.should_stop(self.node_count) {
+        if self.timer.should_stop(self.stats.node_count) {
             return 0;
         }
         let stand_pat = evaluate(self.position);
@@ -186,9 +215,9 @@ impl<'a> Search<'a> {
         pv: &mut Vec<Move>,
         pv_node: bool,
     ) -> i32 {
-        self.node_count += 1;
+        self.stats.node_count += 1;
 
-        if ply > 0 && self.timer.should_stop(self.node_count) {
+        if ply > 0 && self.timer.should_stop(self.stats.node_count) {
             return 0;
         }
 
@@ -320,6 +349,13 @@ impl<'a> Search<'a> {
                     depth,
                     Some(move_),
                 );
+
+                self.stats.cut_nodes += 1;
+                self.stats.cut_move_index_sum += (legal_moves - 1) as u64;
+                if legal_moves == 1 {
+                    self.stats.first_move_cuts += 1;
+                }
+
                 return beta; // fail hard beta-cutoff
             }
             if value > alpha {
@@ -332,6 +368,8 @@ impl<'a> Search<'a> {
 
                 node_type = NodeType::Exact;
                 best_move = Some(move_);
+
+                self.stats.pv_nodes += 1;
             }
         }
         if legal_moves == 0 {
@@ -343,6 +381,9 @@ impl<'a> Search<'a> {
         }
         self.tt
             .write_entry(self.position.hash, alpha, node_type, depth, best_move);
+
+        self.stats.all_nodes += 1;
+
         alpha
     }
 }
