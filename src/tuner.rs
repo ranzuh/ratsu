@@ -2,7 +2,7 @@ use crate::{
     evaluation::{flip_board, init_pawn_ranks},
     piece::{
         BISHOP, BLACK, EMPTY, KING, KNIGHT, PAWN, QUEEN, ROOK, WHITE, get_piece_color,
-        get_piece_type,
+        get_piece_type, piece_from_char,
     },
     position::{Position, get_square_in_64},
 };
@@ -10,15 +10,72 @@ use crate::{
 use pyo3::prelude::*;
 use rayon::prelude::*;
 
+struct LightPosition {
+    board: [u8; 128],
+    is_white_turn: bool,
+}
+
+impl LightPosition {
+    pub fn from_fen(fen_string: &str) -> Self {
+        let mut pos = LightPosition {
+            board: [EMPTY; 128],
+            is_white_turn: false,
+        };
+        let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
+
+        let piece_placement = fen_parts[0];
+        let side_to_move = fen_parts[1];
+
+        pos.is_white_turn = side_to_move == "w";
+
+        let mut i: usize = 0;
+        for c in piece_placement.chars() {
+            if c.is_numeric() {
+                let n_empty_squares = c.to_digit(10).unwrap() as usize;
+                i += n_empty_squares;
+            } else if c == '/' {
+                i += 8;
+            } else {
+                let piece = piece_from_char(c);
+                pos.board[i] = piece;
+                i += 1;
+            }
+        }
+
+        pos
+    }
+}
+
+#[pyclass]
+struct EvaluationDataset {
+    positions: Vec<LightPosition>,
+    results: Vec<f32>,
+}
+
+#[pymethods]
+impl EvaluationDataset {
+    #[new]
+    fn new(fens_and_results: Vec<(String, f32)>) -> Self {
+        let mut positions = Vec::with_capacity(fens_and_results.len());
+        let mut results = Vec::with_capacity(fens_and_results.len());
+
+        for (fen, res) in fens_and_results {
+            positions.push(LightPosition::from_fen(&fen));
+            results.push(res);
+        }
+        EvaluationDataset { positions, results }
+    }
+}
+
 #[pyfunction]
 fn eval_fen(fen: &str, weights: Vec<i32>) -> PyResult<i32> {
-    let pos = Position::from_fen(fen);
+    let pos = LightPosition::from_fen(fen);
     let w = Weights::from_vec(&weights);
     Ok(evaluate_with_weights(&pos, &w))
 }
 
 #[pyfunction]
-fn compute_mse(positions: Vec<(String, f32)>, weights: Vec<i32>, k: f32) -> PyResult<f32> {
+fn compute_mse(dataset: &EvaluationDataset, weights: Vec<i32>, k: f32) -> PyResult<f32> {
     let w = Weights::from_vec(&weights);
 
     const SCALE: f64 = 1e9;
@@ -26,11 +83,12 @@ fn compute_mse(positions: Vec<(String, f32)>, weights: Vec<i32>, k: f32) -> PyRe
     // NOTE: Addition of floats is non-associative.
     // If using parallel iterator like Rayon, special care must be taken
     // to ensure compute_mse is deterministic.
-    let total_error_int: i128 = positions
+    let total_error_int: i128 = dataset
+        .positions
         .par_iter()
-        .map(|(fen, result)| {
-            let pos = Position::from_fen(fen);
-            let score_side_to_move = evaluate_with_weights(&pos, &w) as f32;
+        .zip(&dataset.results)
+        .map(|(pos, result)| {
+            let score_side_to_move = evaluate_with_weights(pos, &w) as f32;
             // Convert to white's perspective
             let score = if pos.is_white_turn {
                 score_side_to_move
@@ -45,13 +103,14 @@ fn compute_mse(positions: Vec<(String, f32)>, weights: Vec<i32>, k: f32) -> PyRe
         })
         .sum();
 
-    let final_mse = (total_error_int as f64 / SCALE) / positions.len() as f64;
+    let final_mse = (total_error_int as f64 / SCALE) / dataset.positions.len() as f64;
 
     Ok(final_mse as f32)
 }
 
 #[pymodule]
 fn ratsu(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<EvaluationDataset>()?;
     m.add_function(wrap_pyfunction!(eval_fen, m)?)?;
     m.add_function(wrap_pyfunction!(compute_mse, m)?)?;
     Ok(())
@@ -220,10 +279,10 @@ const DEFAULT_WEIGHTS: Weights = Weights {
     bishop_pair_bonus: 35,
 };
 
-fn evaluate_with_weights(position: &Position, weights: &Weights) -> i32 {
+fn evaluate_with_weights(position: &LightPosition, weights: &Weights) -> i32 {
     let mut score = 0;
     let side = if position.is_white_turn { 1 } else { -1 };
-    let (white_pawn_ranks, black_pawn_ranks) = init_pawn_ranks(position);
+    let (white_pawn_ranks, black_pawn_ranks) = init_pawn_ranks(&position.board);
     let mut white_bishops = 0;
     let mut black_bishops = 0;
 
@@ -426,17 +485,24 @@ mod tests {
     fn test_evaluate_with_weights() {
         let pos = Position::from_fen(START_POSITION_FEN);
         let eval = evaluate(&pos);
-        let eval_with_default_weights = evaluate_with_weights(&pos, &DEFAULT_WEIGHTS);
+        let light_pos = LightPosition::from_fen(START_POSITION_FEN);
+        let eval_with_default_weights = evaluate_with_weights(&light_pos, &DEFAULT_WEIGHTS);
         assert_eq!(eval, eval_with_default_weights);
 
         let pawn_pos = Position::from_fen("4k3/1p2p3/4p1P1/3p4/3P4/4P2p/1P2P3/4K3 w - - 0 1");
         let pawn_eval = evaluate(&pawn_pos);
-        let pawn_eval_with_default_weights = evaluate_with_weights(&pawn_pos, &DEFAULT_WEIGHTS);
+        let light_pawn_pos =
+            LightPosition::from_fen("4k3/1p2p3/4p1P1/3p4/3P4/4P2p/1P2P3/4K3 w - - 0 1");
+        let pawn_eval_with_default_weights =
+            evaluate_with_weights(&light_pawn_pos, &DEFAULT_WEIGHTS);
         assert_eq!(pawn_eval, pawn_eval_with_default_weights);
 
         let rook_pos = Position::from_fen("2r1kr2/Rp1p1p2/8/8/8/8/rP1P2P1/2R1K1R1 w - - 0 1");
         let rook_eval = evaluate(&rook_pos);
-        let rook_eval_with_default_weights = evaluate_with_weights(&rook_pos, &DEFAULT_WEIGHTS);
+        let light_rook_pos =
+            LightPosition::from_fen("2r1kr2/Rp1p1p2/8/8/8/8/rP1P2P1/2R1K1R1 w - - 0 1");
+        let rook_eval_with_default_weights =
+            evaluate_with_weights(&light_rook_pos, &DEFAULT_WEIGHTS);
         assert_eq!(rook_eval, rook_eval_with_default_weights);
     }
     #[cfg(test)]
