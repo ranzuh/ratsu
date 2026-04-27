@@ -10,8 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 regex = "1.12.2"
-
-pyo3 = { version = "0.28", features = ["extension-module"], optional = true }
+pyo3 = { version = "0.28.3", optional = true }
 rayon = { version = "1", optional = true }
 
 [features]

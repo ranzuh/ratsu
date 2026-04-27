@@ -7,15 +7,15 @@ use crate::{
     position::{Position, get_square_in_64},
 };
 
-const MATERIAL_PAWN: i32 = 100;
-const MATERIAL_KNIGHT: i32 = 350;
-const MATERIAL_BISHOP: i32 = 350;
-const MATERIAL_ROOK: i32 = 525;
-const MATERIAL_QUEEN: i32 = 1000;
-const MATERIAL_KING: i32 = 20000;
+pub const MATERIAL_PAWN: i32 = 100;
+pub const MATERIAL_KNIGHT: i32 = 350;
+pub const MATERIAL_BISHOP: i32 = 350;
+pub const MATERIAL_ROOK: i32 = 525;
+pub const MATERIAL_QUEEN: i32 = 1000;
+pub const MATERIAL_KING: i32 = 20000;
 
 #[rustfmt::skip]
-const PAWN_PST: [i32; 64] = [
+pub const PAWN_PST: [i32; 64] = [
       0,    0,    0,    0,    0,    0,    0,    0,
     124,   93,   88,   68,   66,   70,   92,  102,
      48,   44,   34,    9,   17,   35,   40,   39,
@@ -27,7 +27,7 @@ const PAWN_PST: [i32; 64] = [
 ];
 
 #[rustfmt::skip]
-const KNIGHT_PST: [i32; 64] = [
+pub const KNIGHT_PST: [i32; 64] = [
     -152,  -84,  -53,  -50,  -45,  -86,  -80, -131,
      -72,  -40,    9,  -17,   -5,   -1,  -38,  -48,
      -40,  -19,    6,   19,   13,   20,   -5,  -37,
@@ -39,7 +39,7 @@ const KNIGHT_PST: [i32; 64] = [
 ];
 
 #[rustfmt::skip]
-const BISHOP_PST: [i32; 64] = [
+pub const BISHOP_PST: [i32; 64] = [
     -32,  -39,  -27,  -25,  -27,  -29,  -25,  -36,
     -35,   -8,  -16,  -16,   -4,    4,   -8,  -11,
     -15,   -3,   13,    8,   10,   16,    7,    7,
@@ -51,7 +51,7 @@ const BISHOP_PST: [i32; 64] = [
 ];
 
 #[rustfmt::skip]
-const ROOK_PST: [i32; 64] = [
+pub const ROOK_PST: [i32; 64] = [
     33,   27,   27,   23,   25,   24,   20,   23,
     20,   21,   23,   23,   15,   24,   21,   16,
     20,   19,   15,   18,   15,   21,   18,   14,
@@ -63,7 +63,7 @@ const ROOK_PST: [i32; 64] = [
 ];
 
 #[rustfmt::skip]
-const QUEEN_PST: [i32; 64] = [
+pub const QUEEN_PST: [i32; 64] = [
      1,   23,   38,   50,   46,   50,   20,   33,
     -6,   -9,   13,   31,   28,   87,   59,   64,
     -5,   11,   35,   44,   68,   68,   72,   60,
@@ -75,7 +75,7 @@ const QUEEN_PST: [i32; 64] = [
 ];
 
 #[rustfmt::skip]
-const KING_PST: [i32; 64] = [
+pub const KING_PST: [i32; 64] = [
     -40,  -10,  -12,   -5,   -5,    1,   -5,  -25,
      -9,   15,    9,    8,   10,   25,   19,    4,
      -7,   21,   16,   16,   16,   27,   32,   10,
@@ -86,14 +86,14 @@ const KING_PST: [i32; 64] = [
     -36,    4,   -1,  -30,   -6,  -21,    2,  -18,
 ];
 
-const DOUBLED_PAWN_PENALTY: i32 = 8;
-const ISOLATED_PAWN_PENALTY: i32 = 14;
-const BACKWARDS_PAWN_PENALTY: i32 = 6;
-const PASSED_PAWN_BONUS: i32 = 9;
-const ROOK_SEMI_OPEN_FILE_BONUS: i32 = -8;
-const ROOK_OPEN_FILE_BONUS: i32 = 18;
-const ROOK_ON_SEVENTH_BONUS: i32 = 5;
-const BISHOP_PAIR_BONUS: i32 = 45;
+pub const DOUBLED_PAWN_PENALTY: i32 = 8;
+pub const ISOLATED_PAWN_PENALTY: i32 = 14;
+pub const BACKWARDS_PAWN_PENALTY: i32 = 6;
+pub const PASSED_PAWN_BONUS: i32 = 9;
+pub const ROOK_SEMI_OPEN_FILE_BONUS: i32 = -8;
+pub const ROOK_OPEN_FILE_BONUS: i32 = 18;
+pub const ROOK_ON_SEVENTH_BONUS: i32 = 5;
+pub const BISHOP_PAIR_BONUS: i32 = 45;
 
 pub fn init_pawn_ranks(board: &[u8; 128]) -> ([u8; 10], [u8; 10]) {
     let mut white_pawn_ranks = [0u8; 10];
