@@ -52,9 +52,9 @@ PST_INDICES = [(14 + i * 64, 14 + i * 64 + 64) for i in range(6)]
 PAWN_PST_INDICES = {i for i in range(14, 14 + 64)}
 
 
-def tune_with_annealing(positions, initial_weights, K=1.13):
+def tune_with_annealing(dataset, initial_weights, K=1.13):
     best_weights = initial_weights.copy()
-    best_error = ratsu.compute_mse(positions, best_weights, K)
+    best_error = ratsu.compute_mse(dataset, best_weights, K)
     print(f"Starting MSE: {best_error}")
 
     step_sizes = [30, 10, 5, 2, 1]  # coarse to fine
@@ -75,7 +75,7 @@ def tune_with_annealing(positions, initial_weights, K=1.13):
                 start_time = time.time()
                 new_weights = best_weights.copy()
                 new_weights[i] += step
-                new_error = ratsu.compute_mse(positions, new_weights, K)
+                new_error = ratsu.compute_mse(dataset, new_weights, K)
                 if new_error < best_error:
                     assert i not in {14, 15, 16, 17, 18, 19, 20, 21}
                     best_error = new_error
@@ -83,7 +83,7 @@ def tune_with_annealing(positions, initial_weights, K=1.13):
                     improved = True
                 else:
                     new_weights[i] -= 2 * step
-                    new_error = ratsu.compute_mse(positions, new_weights, K)
+                    new_error = ratsu.compute_mse(dataset, new_weights, K)
                     if new_error < best_error:
                         assert i not in {14, 15, 16, 17, 18, 19, 20, 21}
                         best_error = new_error
@@ -108,6 +108,8 @@ if __name__ == "__main__":
     positions = load_positions("tuner/quiet-labeled.v7.epd")
     print(f"Loaded {len(positions)} positions")
 
+    dataset = ratsu.EvaluationDataset(positions)
+
     init_weights = load_weights("tuner/weights_material_only.json")
     print(f"loaded {len(init_weights)} weights")
 
@@ -131,5 +133,5 @@ if __name__ == "__main__":
 
     best_k = 1.50
 
-    tuned_weights = tune_with_annealing(positions, init_weights, K=best_k)
+    tuned_weights = tune_with_annealing(dataset, init_weights, K=best_k)
     print("Tuned weights:", tuned_weights)

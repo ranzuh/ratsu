@@ -95,14 +95,14 @@ const ROOK_OPEN_FILE_BONUS: i32 = 18;
 const ROOK_ON_SEVENTH_BONUS: i32 = 5;
 const BISHOP_PAIR_BONUS: i32 = 45;
 
-pub fn init_pawn_ranks(pos: &Position) -> ([u8; 10], [u8; 10]) {
+pub fn init_pawn_ranks(board: &[u8; 128]) -> ([u8; 10], [u8; 10]) {
     let mut white_pawn_ranks = [0u8; 10];
     let mut black_pawn_ranks = [7u8; 10];
 
     for rank in 1..7 {
         for file in 0..8 {
             let square = rank * 16 + file;
-            let piece = pos.board[square];
+            let piece = board[square];
             if get_piece_type(piece) == PAWN {
                 let rank = get_rank(square) as u8;
                 let pawn_file_index = get_file(square) + 1;
@@ -280,7 +280,7 @@ fn get_piece_material_score(piece: u8) -> i32 {
 pub fn evaluate(position: &Position) -> i32 {
     let mut score = 0;
     let side = if position.is_white_turn { 1 } else { -1 };
-    let (white_pawn_ranks, black_pawn_ranks) = init_pawn_ranks(position);
+    let (white_pawn_ranks, black_pawn_ranks) = init_pawn_ranks(&position.board);
     let mut white_bishops = 0;
     let mut black_bishops = 0;
 
