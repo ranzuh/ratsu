@@ -4,7 +4,7 @@ use crate::{
         BISHOP, BLACK, EMPTY, KING, KNIGHT, PAWN, QUEEN, ROOK, WHITE, get_piece_color,
         get_piece_type, piece_from_char,
     },
-    position::{Position, get_square_in_64},
+    position::get_square_in_64,
 };
 
 use pyo3::prelude::*;
@@ -144,7 +144,8 @@ struct Weights {
 }
 
 impl Weights {
-    pub fn to_vec(&self) -> Vec<i32> {
+    #[cfg(test)]
+    fn to_vec(&self) -> Vec<i32> {
         let mut v = vec![
             self.material_pawn,
             self.material_knight,
@@ -170,7 +171,7 @@ impl Weights {
         v
     }
 
-    pub fn from_vec(v: &[i32]) -> Self {
+    fn from_vec(v: &[i32]) -> Self {
         Self {
             material_pawn: v[0],
             material_knight: v[1],
@@ -195,89 +196,6 @@ impl Weights {
         }
     }
 }
-
-const DEFAULT_WEIGHTS: Weights = Weights {
-    material_pawn: 100,
-    material_knight: 350,
-    material_bishop: 350,
-    material_rook: 525,
-    material_queen: 1000,
-    material_king: 20000,
-    #[rustfmt::skip]
-    pawn_pst: [
-        0,  0,  0,  0,  0,  0,  0,  0,
-        50, 50, 50, 50, 50, 50, 50, 50,
-        10, 10, 20, 30, 30, 20, 10, 10,
-        5,  5, 10, 25, 25, 10,  5,  5,
-        0,  0,  0, 20, 20,  0,  0,  0,
-        5, -5, -5,  0,  0,-10,  0,  5,
-        5, 10, 10,-20,-20, 10, 10,  5,
-        0,  0,  0,  0,  0,  0,  0,  0
-    ],
-    #[rustfmt::skip]
-    knight_pst: [
-        -50,-40,-30,-30,-30,-30,-40,-50,
-        -40,-20,  0,  0,  0,  0,-20,-40,
-        -30,  0, 10, 15, 15, 10,  0,-30,
-        -20,  5, 15, 20, 20, 15,  5,-20,
-        -20,  0, 15, 20, 20, 15,  0,-20,
-        -30,  5, 10, 15, 15, 10,  5,-30,
-        -40,-20,  0,  5,  5,  0,-20,-40,
-        -50,-40,-30,-30,-30,-30,-40,-50,
-    ],
-    #[rustfmt::skip]
-    bishop_pst: [
-        -20,-10,-10,-10,-10,-10,-10,-20,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -10,  0,  5, 10, 10,  5,  0,-10,
-        -10,  5,  5, 10, 10,  5,  5,-10,
-        -10,  0, 10, 10, 10, 10,  0,-10,
-        -10, 10, 10, 10, 10, 10, 10,-10,
-        -10, 10,  0,  0,  0,  0, 10,-10,
-        -20,-10,-10,-10,-10,-10,-10,-20,
-    ],
-    #[rustfmt::skip]
-    rook_pst: [
-        5,  5,  5,  5,  5,  0,  0,  0,
-        5, 10, 10, 10, 10, 10, 10,  5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        -5,  0,  0,  0,  0,  0,  0, -5,
-        0,  0,  0,  5,  5,  0,  0,  0,
-    ],
-    #[rustfmt::skip]
-    queen_pst: [
-        -20,-10, -5, -0, -0, -0, -5,-10,
-        -10,  0,  0,  0,  0,  5,  5, -5,
-        -10,  0,  5,  5,  5,  5,  5,-10,
-        -5,  0,  5,  5,  5,  5,  0, -5,
-        0,  0,  5,  5,  5,  5,  0, -5,
-        -10,  5,  5,  5,  5,  5,  5,-10,
-        -10,  0,  5,  0,  0,  0,  0,-10,
-        -20,-10,-10, -5, -5,-10,-10,-20,
-    ],
-    #[rustfmt::skip]
-    king_pst: [
-        0,  0,  0,  0,   0,  0,  0,  0,
-        0,  0,  5,  5,   5,  5,  0,  0,
-        0,  5,  5, 10,  10,  5,  5,  0,
-        0,  5, 10, 20,  20, 10,  5,  0,
-        0,  5, 10, 20,  20, 10,  5,  0,
-        0,  0,  5, 10,  10,  5,  0,  0,
-        0,  5,  5, -5,  -5,  0,  5,  0,
-        0,  0,  5,  0, -15,  0,  10, 0,
-    ],
-    doubled_pawn_penalty: 10,
-    isolated_pawn_penalty: 20,
-    backwards_pawn_penalty: 8,
-    passed_pawn_bonus: 20,
-    rook_semi_open_file_bonus: 10,
-    rook_open_file_bonus: 15,
-    rook_on_seventh_bonus: 20,
-    bishop_pair_bonus: 35,
-};
 
 fn evaluate_with_weights(position: &LightPosition, weights: &Weights) -> i32 {
     let mut score = 0;
@@ -366,7 +284,7 @@ fn get_piece_table_score_with_weights(
     }
 }
 
-pub fn get_material_score_with_weights(piece: u8, weights: &Weights) -> i32 {
+fn get_material_score_with_weights(piece: u8, weights: &Weights) -> i32 {
     match get_piece_type(piece) {
         PAWN => weights.material_pawn,
         KNIGHT => weights.material_knight,
@@ -477,9 +395,40 @@ fn get_rook_score_with_weights(
 
 #[cfg(test)]
 mod tests {
-    use crate::{START_POSITION_FEN, evaluation::evaluate};
+    use crate::START_POSITION_FEN;
+    use crate::evaluation::{
+        BACKWARDS_PAWN_PENALTY, BISHOP_PAIR_BONUS, BISHOP_PST, DOUBLED_PAWN_PENALTY,
+        ISOLATED_PAWN_PENALTY, KING_PST, KNIGHT_PST, MATERIAL_BISHOP, MATERIAL_KING,
+        MATERIAL_KNIGHT, MATERIAL_PAWN, MATERIAL_QUEEN, MATERIAL_ROOK, PASSED_PAWN_BONUS, PAWN_PST,
+        QUEEN_PST, ROOK_ON_SEVENTH_BONUS, ROOK_OPEN_FILE_BONUS, ROOK_PST,
+        ROOK_SEMI_OPEN_FILE_BONUS, evaluate,
+    };
+    use crate::position::Position;
 
     use super::*;
+
+    const DEFAULT_WEIGHTS: Weights = Weights {
+        material_pawn: MATERIAL_PAWN,
+        material_knight: MATERIAL_KNIGHT,
+        material_bishop: MATERIAL_BISHOP,
+        material_rook: MATERIAL_ROOK,
+        material_queen: MATERIAL_QUEEN,
+        material_king: MATERIAL_KING,
+        pawn_pst: PAWN_PST,
+        knight_pst: KNIGHT_PST,
+        bishop_pst: BISHOP_PST,
+        rook_pst: ROOK_PST,
+        queen_pst: QUEEN_PST,
+        king_pst: KING_PST,
+        doubled_pawn_penalty: DOUBLED_PAWN_PENALTY,
+        isolated_pawn_penalty: ISOLATED_PAWN_PENALTY,
+        backwards_pawn_penalty: BACKWARDS_PAWN_PENALTY,
+        passed_pawn_bonus: PASSED_PAWN_BONUS,
+        rook_semi_open_file_bonus: ROOK_SEMI_OPEN_FILE_BONUS,
+        rook_open_file_bonus: ROOK_OPEN_FILE_BONUS,
+        rook_on_seventh_bonus: ROOK_ON_SEVENTH_BONUS,
+        bishop_pair_bonus: BISHOP_PAIR_BONUS,
+    };
 
     #[test]
     fn test_evaluate_with_weights() {
@@ -505,50 +454,46 @@ mod tests {
             evaluate_with_weights(&light_rook_pos, &DEFAULT_WEIGHTS);
         assert_eq!(rook_eval, rook_eval_with_default_weights);
     }
-    #[cfg(test)]
-    mod tests {
-        use super::*;
 
-        #[test]
-        fn test_to_vec_length() {
-            let w = DEFAULT_WEIGHTS;
-            assert_eq!(w.to_vec().len(), 398); // 14 scalars + 6*64 PST values
-        }
+    #[test]
+    fn test_to_vec_length() {
+        let w = DEFAULT_WEIGHTS;
+        assert_eq!(w.to_vec().len(), 398); // 14 scalars + 6*64 PST values
+    }
 
-        #[test]
-        fn test_roundtrip() {
-            // Converting to vec and back should give identical weights
-            let original = DEFAULT_WEIGHTS;
-            let roundtripped = Weights::from_vec(&original.to_vec());
-            assert_eq!(original, roundtripped);
-        }
+    #[test]
+    fn test_roundtrip() {
+        // Converting to vec and back should give identical weights
+        let original = DEFAULT_WEIGHTS;
+        let roundtripped = Weights::from_vec(&original.to_vec());
+        assert_eq!(original, roundtripped);
+    }
 
-        #[test]
-        fn test_scalars_are_at_correct_positions() {
-            let w = DEFAULT_WEIGHTS;
-            let v = w.to_vec();
-            assert_eq!(v[0], w.material_pawn);
-            assert_eq!(v[1], w.material_knight);
-            assert_eq!(v[13], w.bishop_pair_bonus);
-        }
+    #[test]
+    fn test_scalars_are_at_correct_positions() {
+        let w = DEFAULT_WEIGHTS;
+        let v = w.to_vec();
+        assert_eq!(v[0], w.material_pawn);
+        assert_eq!(v[1], w.material_knight);
+        assert_eq!(v[13], w.bishop_pair_bonus);
+    }
 
-        #[test]
-        fn test_psts_are_at_correct_positions() {
-            let w = DEFAULT_WEIGHTS;
-            let v = w.to_vec();
-            assert_eq!(v[14..78], w.pawn_pst);
-            assert_eq!(v[78..142], w.knight_pst);
-            assert_eq!(v[334..398], w.king_pst);
-        }
+    #[test]
+    fn test_psts_are_at_correct_positions() {
+        let w = DEFAULT_WEIGHTS;
+        let v = w.to_vec();
+        assert_eq!(v[14..78], w.pawn_pst);
+        assert_eq!(v[78..142], w.knight_pst);
+        assert_eq!(v[334..398], w.king_pst);
+    }
 
-        #[test]
-        fn test_modifying_vec_changes_weights() {
-            let mut v = DEFAULT_WEIGHTS.to_vec();
-            v[0] = 999; // change material_pawn
-            let w = Weights::from_vec(&v);
-            assert_eq!(w.material_pawn, 999);
-            // everything else unchanged
-            assert_eq!(w.material_knight, DEFAULT_WEIGHTS.material_knight);
-        }
+    #[test]
+    fn test_modifying_vec_changes_weights() {
+        let mut v = DEFAULT_WEIGHTS.to_vec();
+        v[0] = 999; // change material_pawn
+        let w = Weights::from_vec(&v);
+        assert_eq!(w.material_pawn, 999);
+        // everything else unchanged
+        assert_eq!(w.material_knight, DEFAULT_WEIGHTS.material_knight);
     }
 }
