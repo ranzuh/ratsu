@@ -5,47 +5,55 @@
 </div>
 
 ## Features
-- 0x88 board representation
-- Iterative deepening negamax search
-- Quiescence search
-- Evaluation using material, piece-square tables, and pawn structures
-- Transposition table with Zobrist hashing
-- Move ordering using PV move, TT move, MVV-LVA, Killer moves, and History heuristic
-- Check extension
-- Null move pruning
-- Principal variation search
-- Detect repetitions and fifty-move rule
-- Basic UCI support
+
+* 0x88 board representation
+* Iterative deepening negamax search
+* Quiescence search
+* Evaluation using material, piece-square tables, pawn structures, and bishop pair
+* Tuned evaluation weights
+* Transposition table with Zobrist hashing
+* Move ordering using TT move, MVV-LVA, Killer moves, and History heuristic
+* Check extension
+* Null move pruning
+* Principal variation search
+* Late move reductions
+* Aspiration windows
+* Detect repetitions and fifty-move rule
+* Basic UCI support
 
 ## Build & Develop
 
 Quick build & run
 
-```shell
+```
 cargo run
 ```
 
 Build for release
 
-```shell
+```
 cargo build -r
 ```
 
 Run tests
 
-```shell
+```
 cargo test
 ```
 
 Format code
 
-```shell
+```
 cargo fmt
 ```
 
 ## Credit
+
 Thanks to
-- Maksim Korzh for his Bitboard CHESS ENGINE in C and 0x88 MOVE GENERATOR youtube series which inspired me to start programming chess engines.
-- Chess Programming Wiki for all the knowledge
-- Authors of TSCP, Blunder, Rustic
-- For folks at chess programming discord servers
+
+* Maksim Korzh for his Bitboard CHESS ENGINE in C and 0x88 MOVE GENERATOR youtube series which inspired me to start programming chess engines.
+* Chess Programming Wiki for all the knowledge
+* Authors of TSCP, Blunder, Rustic
+* The folks at chess programming discord servers
+* The CCRL team and other chess engine testers for testing and rating Ratsu
+
