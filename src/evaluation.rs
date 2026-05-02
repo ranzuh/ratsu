@@ -333,9 +333,8 @@ pub fn evaluate(position: &Position) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use crate::START_POSITION_FEN;
-
     use super::*;
+    use crate::START_POSITION_FEN;
 
     #[test]
     fn test_evaluate() {
@@ -350,5 +349,35 @@ mod tests {
         let rook_pos = Position::from_fen("2r1kr2/Rp1p1p2/8/8/8/8/rP1P2P1/2R1K1R1 w - - 0 1");
         let rook_eval = evaluate(&rook_pos);
         assert_eq!(rook_eval, -32);
+    }
+
+    #[test]
+    fn test_eval_snapshots() {
+        let cases = [
+            // (fen, expected_eval)
+            (START_POSITION_FEN, 0),
+            // Doubled pawns
+            ("4k3/2p5/2p5/8/4P3/8/4P3/4K3 w - - 0 1", 15),
+            // Isolated pawns
+            ("4k3/8/8/3p4/3P4/8/8/4K3 w - - 0 1", 0),
+            // Passed pawns
+            ("4k3/8/8/4P3/4p3/8/8/4K3 w - - 0 1", 0),
+            // Rooks on open file
+            ("4k2r/8/8/8/8/8/8/R3K3 w - - 0 1", 20),
+            // Rooks on semi-open files
+            ("4k2r/p7/8/8/8/8/7P/R3K3 w - - 0 1", 26),
+            // Bishop pairs
+            ("4k3/1b4b1/8/8/8/8/1B4B1/4K3 w - - 0 1", 0),
+            // Complex endgame-ish position
+            ("2rr1k2/7p/p6p/8/1p2pP2/7B/KB6/3R3R w - - 0 41", 278),
+            // Rooks on 7th ranks
+            ("4k3/R7/8/8/8/8/r7/4K3 w - - 0 1", 0),
+        ];
+
+        for (fen, expected) in &cases {
+            let pos = Position::from_fen(fen);
+            let eval = evaluate(&pos);
+            assert_eq!(eval, *expected, "Failed for FEN: {}", fen);
+        }
     }
 }
