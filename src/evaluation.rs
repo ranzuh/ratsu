@@ -227,7 +227,7 @@ const BISHOP_PST_BLACK: [i32; 64] = flip_board(&BISHOP_PST);
 const QUEEN_PST_BLACK: [i32; 64] = flip_board(&QUEEN_PST);
 const KING_PST_BLACK: [i32; 64] = flip_board(&KING_PST);
 
-fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
+pub fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
     let square64 = get_square_in_64(square);
 
     if get_piece_color(piece) == WHITE {
@@ -253,7 +253,7 @@ fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
     }
 }
 
-pub fn get_material_score(piece: u8) -> i32 {
+fn get_material_score(piece: u8) -> i32 {
     match get_piece_type(piece) {
         PAWN => MATERIAL_PAWN,
         KNIGHT => MATERIAL_KNIGHT,
@@ -266,7 +266,7 @@ pub fn get_material_score(piece: u8) -> i32 {
     }
 }
 
-fn get_piece_material_score(piece: u8) -> i32 {
+pub fn get_piece_material_score(piece: u8) -> i32 {
     let side = match get_piece_color(piece) {
         WHITE => 1,
         BLACK => -1,
@@ -280,54 +280,20 @@ fn get_piece_material_score(piece: u8) -> i32 {
 pub fn evaluate(position: &Position) -> i32 {
     let mut score = 0;
     let side = if position.is_white_turn { 1 } else { -1 };
-    let (white_pawn_ranks, black_pawn_ranks) = init_pawn_ranks(&position.board);
-    let mut white_bishops = 0;
-    let mut black_bishops = 0;
 
-    for rank in 0..8 {
-        for file in 0..8 {
-            let square = rank * 16 + file;
-            let piece = position.board[square];
-            let piece_type = get_piece_type(piece);
-            if piece_type == EMPTY {
-                continue;
-            }
-
-            score += get_piece_table_score(square, piece, piece_type);
-            score += get_piece_material_score(piece);
-            if piece_type == BISHOP {
-                if get_piece_color(piece) == WHITE {
-                    white_bishops += 1;
-                } else {
-                    black_bishops += 1;
-                }
-            }
-            if piece_type == PAWN {
-                score += get_pawn_structure_score(
-                    &white_pawn_ranks,
-                    &black_pawn_ranks,
-                    piece,
-                    rank as u8,
-                    file + 1,
-                );
-            }
-            if piece_type == ROOK {
-                score += get_rook_score(
-                    &white_pawn_ranks,
-                    &black_pawn_ranks,
-                    piece,
-                    rank as u8,
-                    file + 1,
-                );
-            }
-        }
-    }
+    let white_bishops = (position.bb_color[0] & position.bb_piece[2]).count_ones();
+    let black_bishops = (position.bb_color[1] & position.bb_piece[2]).count_ones();
     if white_bishops >= 2 {
         score += BISHOP_PAIR_BONUS;
     }
     if black_bishops >= 2 {
         score -= BISHOP_PAIR_BONUS;
     }
+
+    score += position.material_score + position.pst_score;
+    score += bb_pawn_structure(&position.bb_color, &position.bb_piece);
+    score += bb_rook_score(&position.bb_color, &position.bb_piece);
+
     score * side
 }
 
@@ -369,7 +335,7 @@ mod tests {
             // Bishop pairs
             ("4k3/1b4b1/8/8/8/8/1B4B1/4K3 w - - 0 1", 0),
             // Complex endgame-ish position
-            ("2rr1k2/7p/p6p/8/1p2pP2/7B/KB6/3R3R w - - 0 41", 278),
+            ("2rr1k2/7p/p6p/8/1p2pP2/7B/KB6/3R3R w - - 0 41", 280),
             // Rooks on 7th ranks
             ("4k3/R7/8/8/8/8/r7/4K3 w - - 0 1", 0),
         ];
