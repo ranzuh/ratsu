@@ -1,3 +1,4 @@
+use crate::evaluation::{get_piece_material_score, get_piece_table_score};
 use crate::hash::ZobristKeys;
 use crate::movegen::{BOARD_SQUARES, Move, get_file, get_rank, get_square_string, is_off_board};
 use crate::piece::*;
@@ -25,6 +26,8 @@ pub struct Position {
     pub fifty: u8,
     pub bb_color: [u64; 2],
     pub bb_piece: [u64; 6],
+    pub material_score: i32,
+    pub pst_score: i32,
 
     prev_target_piece: [u8; 64],
     prev_castling_rights: [[bool; 4]; 64],
@@ -32,6 +35,8 @@ pub struct Position {
     prev_ep_square: [Option<usize>; 64],
     prev_hash: [u64; 64],
     prev_fifty: [u8; 64],
+    prev_material_score: [i32; 64],
+    prev_pst_score: [i32; 64],
 }
 
 impl Position {
@@ -85,6 +90,8 @@ impl Position {
             fifty: 0,
             bb_color: [0u64; 2],
             bb_piece: [0u64; 6],
+            material_score: 0,
+            pst_score: 0,
 
             prev_target_piece: [0u8; 64],
             prev_castling_rights: [[false, false, false, false]; 64],
@@ -92,6 +99,8 @@ impl Position {
             prev_ep_square: [None; 64],
             prev_hash: [0u64; 64],
             prev_fifty: [0u8; 64],
+            prev_material_score: [0i32; 64],
+            prev_pst_score: [0i32; 64],
         };
         let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
         // currently using only the piece placement, later use side, castling, ep, etc.
@@ -126,6 +135,8 @@ impl Position {
                 pos.board[i] = piece;
 
                 pos.bb_add_piece_to(piece, i);
+                pos.material_score += get_piece_material_score(piece);
+                pos.pst_score += get_piece_table_score(i, piece, get_piece_type(piece));
 
                 i += 1;
             }
@@ -211,6 +222,8 @@ impl Position {
                 self.board[117] = WHITE | ROOK;
                 self.bb_remove_piece_from(WHITE | ROOK, 119);
                 self.bb_add_piece_to(WHITE | ROOK, 117);
+                self.pst_score -= get_piece_table_score(119, WHITE | ROOK, ROOK);
+                self.pst_score += get_piece_table_score(117, WHITE | ROOK, ROOK);
                 self.hash ^= self.piece_hash(119, WHITE | ROOK);
                 self.hash ^= self.piece_hash(117, WHITE | ROOK);
             }
@@ -219,6 +232,8 @@ impl Position {
                 self.board[115] = WHITE | ROOK;
                 self.bb_remove_piece_from(WHITE | ROOK, 112);
                 self.bb_add_piece_to(WHITE | ROOK, 115);
+                self.pst_score -= get_piece_table_score(112, WHITE | ROOK, ROOK);
+                self.pst_score += get_piece_table_score(115, WHITE | ROOK, ROOK);
                 self.hash ^= self.piece_hash(112, WHITE | ROOK);
                 self.hash ^= self.piece_hash(115, WHITE | ROOK);
             }
@@ -227,6 +242,8 @@ impl Position {
                 self.board[5] = BLACK | ROOK;
                 self.bb_remove_piece_from(BLACK | ROOK, 7);
                 self.bb_add_piece_to(BLACK | ROOK, 5);
+                self.pst_score -= get_piece_table_score(7, BLACK | ROOK, ROOK);
+                self.pst_score += get_piece_table_score(5, BLACK | ROOK, ROOK);
                 self.hash ^= self.piece_hash(7, BLACK | ROOK);
                 self.hash ^= self.piece_hash(5, BLACK | ROOK);
             }
@@ -235,6 +252,8 @@ impl Position {
                 self.board[3] = BLACK | ROOK;
                 self.bb_remove_piece_from(BLACK | ROOK, 0);
                 self.bb_add_piece_to(BLACK | ROOK, 3);
+                self.pst_score -= get_piece_table_score(0, BLACK | ROOK, ROOK);
+                self.pst_score += get_piece_table_score(3, BLACK | ROOK, ROOK);
                 self.hash ^= self.piece_hash(0, BLACK | ROOK);
                 self.hash ^= self.piece_hash(3, BLACK | ROOK);
             }
@@ -297,6 +316,8 @@ impl Position {
         self.prev_ep_square[ply as usize] = self.enpassant_square;
         self.prev_hash[ply as usize] = self.hash;
         self.prev_fifty[ply as usize] = self.fifty;
+        self.prev_material_score[ply as usize] = self.material_score;
+        self.prev_pst_score[ply as usize] = self.pst_score;
 
         let piece = self.board[move_.from];
         let piece_type = get_piece_type(piece);
@@ -387,10 +408,14 @@ impl Position {
             if self.is_white_turn {
                 self.board[move_.to + 16] = EMPTY;
                 self.bb_remove_piece_from(BLACK | PAWN, move_.to + 16);
+                self.pst_score -= get_piece_table_score(move_.to + 16, BLACK | PAWN, PAWN);
+                self.material_score -= get_piece_material_score(BLACK | PAWN);
                 self.hash ^= self.piece_hash(move_.to + 16, BLACK | PAWN);
             } else {
                 self.board[move_.to - 16] = EMPTY;
                 self.bb_remove_piece_from(WHITE | PAWN, move_.to - 16);
+                self.pst_score -= get_piece_table_score(move_.to - 16, WHITE | PAWN, PAWN);
+                self.material_score -= get_piece_material_score(WHITE | PAWN);
                 self.hash ^= self.piece_hash(move_.to - 16, WHITE | PAWN);
             }
         }
@@ -399,6 +424,9 @@ impl Position {
             let target_piece = self.board[move_.to];
             if target_piece != EMPTY {
                 self.bb_remove_piece_from(target_piece, move_.to);
+                self.pst_score -=
+                    get_piece_table_score(move_.to, target_piece, get_piece_type(target_piece));
+                self.material_score -= get_piece_material_score(target_piece);
             }
             self.hash ^= self.piece_hash(move_.to, target_piece);
             self.fifty = 0;
@@ -407,15 +435,21 @@ impl Position {
         if let Some(prom_piece) = move_.promoted_piece {
             self.board[move_.to] = prom_piece;
             self.bb_add_piece_to(prom_piece, move_.to);
+            self.pst_score +=
+                get_piece_table_score(move_.to, prom_piece, get_piece_type(prom_piece));
+            self.material_score += get_piece_material_score(prom_piece);
+            self.material_score -= get_piece_material_score(piece);
             self.hash ^= self.piece_hash(move_.to, prom_piece);
         } else {
             self.board[move_.to] = piece;
             self.bb_add_piece_to(piece, move_.to);
+            self.pst_score += get_piece_table_score(move_.to, piece, piece_type);
             self.hash ^= self.piece_hash(move_.to, piece);
         }
 
         self.board[move_.from] = EMPTY;
         self.bb_remove_piece_from(piece, move_.from);
+        self.pst_score -= get_piece_table_score(move_.from, piece, piece_type);
         self.hash ^= self.piece_hash(move_.from, piece);
         self.is_white_turn = !self.is_white_turn;
         self.hash ^= self.keys.black_to_move_key;
@@ -460,6 +494,8 @@ impl Position {
         self.enpassant_square = self.prev_ep_square[ply as usize];
         self.hash = self.prev_hash[ply as usize];
         self.fifty = self.prev_fifty[ply as usize];
+        self.material_score = self.prev_material_score[ply as usize];
+        self.pst_score = self.prev_pst_score[ply as usize];
     }
 
     pub fn make_null(&mut self) {
