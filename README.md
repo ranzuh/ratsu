@@ -6,10 +6,10 @@
 
 ## Features
 
-* 0x88 board representation
+* 0x88 board representation and move generation
 * Iterative deepening negamax search
 * Quiescence search
-* Evaluation using material, piece-square tables, pawn structures, and bishop pair
+* Evaluation using incrementally updated material and piece-square tables; and bitboards for pawn/rook structures and bishop pair
 * Tuned evaluation weights
 * Transposition table with Zobrist hashing
 * Move ordering using TT move, MVV-LVA, Killer moves, and History heuristic
@@ -18,6 +18,7 @@
 * Principal variation search
 * Late move reductions
 * Aspiration windows
+* Futility pruning
 * Detect repetitions and fifty-move rule
 * Basic UCI support
 
