@@ -150,7 +150,7 @@ impl<'a> Search<'a> {
                     self.stats.node_count,
                     (self.stats.node_count as f32 / self.timer.elapsed().as_secs_f32()) as u64
                 );
-                print_search_stats(&self.stats);
+                // print_search_stats(&self.stats);
             }
         }
         (self.prev_pv.clone(), self.stats.node_count)

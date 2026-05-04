@@ -90,7 +90,7 @@ pub const DOUBLED_PAWN_PENALTY: i32 = 8;
 pub const ISOLATED_PAWN_PENALTY: i32 = 14;
 pub const BACKWARDS_PAWN_PENALTY: i32 = 6;
 pub const PASSED_PAWN_BONUS: i32 = 9;
-pub const ROOK_SEMI_OPEN_FILE_BONUS: i32 = -8;
+pub const ROOK_SEMI_OPEN_FILE_BONUS: i32 = 8;
 pub const ROOK_OPEN_FILE_BONUS: i32 = 18;
 pub const ROOK_ON_SEVENTH_BONUS: i32 = 5;
 pub const BISHOP_PAIR_BONUS: i32 = 45;
@@ -174,8 +174,8 @@ fn get_rook_score(
 ) -> i32 {
     let mut score = 0;
     if get_piece_color(piece) == WHITE {
-        if black_pawn_ranks[pawn_file] == 7 {
-            if white_pawn_ranks[pawn_file] == 0 {
+        if white_pawn_ranks[pawn_file] == 0 {
+            if black_pawn_ranks[pawn_file] == 7 {
                 score += ROOK_OPEN_FILE_BONUS
             } else {
                 score += ROOK_SEMI_OPEN_FILE_BONUS
@@ -186,8 +186,8 @@ fn get_rook_score(
             score += ROOK_ON_SEVENTH_BONUS
         }
     } else {
-        if white_pawn_ranks[pawn_file] == 0 {
-            if black_pawn_ranks[pawn_file] == 7 {
+        if black_pawn_ranks[pawn_file] == 7 {
+            if white_pawn_ranks[pawn_file] == 0 {
                 score -= ROOK_OPEN_FILE_BONUS
             } else {
                 score -= ROOK_SEMI_OPEN_FILE_BONUS
@@ -429,15 +429,24 @@ fn bb_pawn_structure(bb_color: &[u64; 2], bb_piece: &[u64; 6]) -> i32 {
 
     // passed pawns
     let b_south = south_fill(black_pawns);
-    let b_sentinel = b_south | adjacent_files(b_south);
-    let white_passed = white_pawns & !b_sentinel;
+    let b_sentinel = b_south | adjacent_files(south_fill(black_pawns >> 8));
+    let mut white_passed = white_pawns & !b_sentinel;
+    while white_passed != 0 {
+        let sq = white_passed.trailing_zeros() as i32;
+        let rank = sq / 8; // 0=rank1, 7=rank8
+        score += rank * PASSED_PAWN_BONUS;
+        white_passed &= white_passed - 1;
+    }
 
     let w_north = north_fill(white_pawns);
-    let w_sentinel = w_north | adjacent_files(w_north);
-    let black_passed = black_pawns & !w_sentinel;
-
-    score += PASSED_PAWN_BONUS * white_passed.count_ones() as i32;
-    score -= PASSED_PAWN_BONUS * black_passed.count_ones() as i32;
+    let w_sentinel = w_north | adjacent_files(north_fill(white_pawns << 8));
+    let mut black_passed = black_pawns & !w_sentinel;
+    while black_passed != 0 {
+        let sq = black_passed.trailing_zeros() as i32;
+        let rank = sq / 8;
+        score -= (7 - rank) * PASSED_PAWN_BONUS;
+        black_passed &= black_passed - 1;
+    }
 
     // backwards pawns
     let white_stop = white_pawns << 8; // square in front of each pawn
@@ -452,6 +461,37 @@ fn bb_pawn_structure(bb_color: &[u64; 2], bb_piece: &[u64; 6]) -> i32 {
 
     score -= BACKWARDS_PAWN_PENALTY * white_backward.count_ones() as i32;
     score += BACKWARDS_PAWN_PENALTY * black_backward.count_ones() as i32;
+
+    score
+}
+
+const RANK_7: u64 = 0x00FF000000000000; // rank 7 (black's 2nd rank)
+const RANK_2: u64 = 0x000000000000FF00; // rank 2 (white's 2nd rank)
+
+pub fn bb_rook_score(bb_color: &[u64; 2], bb_piece: &[u64; 6]) -> i32 {
+    let white_pawns = bb_color[0] & bb_piece[0];
+    let black_pawns = bb_color[1] & bb_piece[0];
+    let white_rooks = bb_color[0] & bb_piece[3];
+    let black_rooks = bb_color[1] & bb_piece[3];
+
+    let w_pawn_files = file_fill(white_pawns);
+    let b_pawn_files = file_fill(black_pawns);
+
+    let open_files = !w_pawn_files & !b_pawn_files;
+    let w_semi_open = !w_pawn_files & b_pawn_files;
+    let b_semi_open = !b_pawn_files & w_pawn_files;
+
+    let mut score = 0;
+
+    // White rooks
+    score += ROOK_OPEN_FILE_BONUS * (white_rooks & open_files).count_ones() as i32;
+    score += ROOK_SEMI_OPEN_FILE_BONUS * (white_rooks & w_semi_open).count_ones() as i32;
+    score += ROOK_ON_SEVENTH_BONUS * (white_rooks & RANK_7).count_ones() as i32;
+
+    // Black rooks
+    score -= ROOK_OPEN_FILE_BONUS * (black_rooks & open_files).count_ones() as i32;
+    score -= ROOK_SEMI_OPEN_FILE_BONUS * (black_rooks & b_semi_open).count_ones() as i32;
+    score -= ROOK_ON_SEVENTH_BONUS * (black_rooks & RANK_2).count_ones() as i32;
 
     score
 }
