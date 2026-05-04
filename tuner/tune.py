@@ -51,6 +51,7 @@ BONUS_INDICES = {6, 7, 8, 9, 10, 11, 12, 13}
 PST_INDICES = [(14 + i * 64, 14 + i * 64 + 64) for i in range(6)]
 PAWN_PST_INDICES = {i for i in range(14, 14 + 64)}
 
+IMPROVED_ERROR_TOLERANCE = 0.000001
 
 def tune_with_annealing(dataset, initial_weights, K=1.13):
     best_weights = initial_weights.copy()
@@ -76,7 +77,7 @@ def tune_with_annealing(dataset, initial_weights, K=1.13):
                 new_weights = best_weights.copy()
                 new_weights[i] += step
                 new_error = ratsu.compute_mse(dataset, new_weights, K)
-                if new_error < best_error:
+                if new_error < best_error - IMPROVED_ERROR_TOLERANCE:
                     assert i not in {14, 15, 16, 17, 18, 19, 20, 21}
                     best_error = new_error
                     best_weights = new_weights
@@ -84,7 +85,7 @@ def tune_with_annealing(dataset, initial_weights, K=1.13):
                 else:
                     new_weights[i] -= 2 * step
                     new_error = ratsu.compute_mse(dataset, new_weights, K)
-                    if new_error < best_error:
+                    if new_error < best_error - IMPROVED_ERROR_TOLERANCE:
                         assert i not in {14, 15, 16, 17, 18, 19, 20, 21}
                         best_error = new_error
                         best_weights = new_weights
