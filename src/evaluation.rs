@@ -1,5 +1,5 @@
 use crate::{
-    movegen::{get_file, get_rank},
+    bitboard::{NOT_A, NOT_H, RANK_2, RANK_7, adjacent_files, file_fill, north_fill, south_fill},
     piece::{
         BISHOP, BLACK, EMPTY, KING, KNIGHT, PAWN, QUEEN, ROOK, WHITE, get_piece_color,
         get_piece_type,
@@ -86,121 +86,6 @@ pub const KING_PST: [i32; 64] = [
     -36,    4,   -1,  -30,   -6,  -21,    2,  -18,
 ];
 
-pub const DOUBLED_PAWN_PENALTY: i32 = 8;
-pub const ISOLATED_PAWN_PENALTY: i32 = 14;
-pub const BACKWARDS_PAWN_PENALTY: i32 = 6;
-pub const PASSED_PAWN_BONUS: i32 = 9;
-pub const ROOK_SEMI_OPEN_FILE_BONUS: i32 = 8;
-pub const ROOK_OPEN_FILE_BONUS: i32 = 18;
-pub const ROOK_ON_SEVENTH_BONUS: i32 = 5;
-pub const BISHOP_PAIR_BONUS: i32 = 45;
-
-pub fn init_pawn_ranks(board: &[u8; 128]) -> ([u8; 10], [u8; 10]) {
-    let mut white_pawn_ranks = [0u8; 10];
-    let mut black_pawn_ranks = [7u8; 10];
-
-    for rank in 1..7 {
-        for file in 0..8 {
-            let square = rank * 16 + file;
-            let piece = board[square];
-            if get_piece_type(piece) == PAWN {
-                let rank = get_rank(square) as u8;
-                let pawn_file_index = get_file(square) + 1;
-                let is_white = get_piece_color(piece) == WHITE;
-                if is_white && white_pawn_ranks[pawn_file_index] < rank {
-                    white_pawn_ranks[pawn_file_index] = rank
-                } else if !is_white && black_pawn_ranks[pawn_file_index] > rank {
-                    black_pawn_ranks[pawn_file_index] = rank
-                }
-            }
-        }
-    }
-    (white_pawn_ranks, black_pawn_ranks)
-}
-
-fn get_pawn_structure_score(
-    white_pawn_ranks: &[u8; 10],
-    black_pawn_ranks: &[u8; 10],
-    piece: u8,
-    rank: u8,
-    pawn_file: usize,
-) -> i32 {
-    let mut score = 0;
-    let left_file = pawn_file - 1;
-    let right_file = pawn_file + 1;
-    if get_piece_color(piece) == WHITE {
-        if white_pawn_ranks[pawn_file] > rank {
-            score -= DOUBLED_PAWN_PENALTY;
-        }
-
-        if white_pawn_ranks[left_file] == 0 && white_pawn_ranks[right_file] == 0 {
-            score -= ISOLATED_PAWN_PENALTY;
-        } else if rank > white_pawn_ranks[left_file] && rank > white_pawn_ranks[right_file] {
-            score -= BACKWARDS_PAWN_PENALTY;
-        }
-
-        if rank <= black_pawn_ranks[left_file]
-            && rank <= black_pawn_ranks[pawn_file]
-            && rank <= black_pawn_ranks[right_file]
-        {
-            score += (7 - rank as i32) * PASSED_PAWN_BONUS;
-        }
-    } else {
-        if black_pawn_ranks[pawn_file] < rank {
-            score += DOUBLED_PAWN_PENALTY;
-        }
-        if black_pawn_ranks[left_file] == 7 && black_pawn_ranks[right_file] == 7 {
-            score += ISOLATED_PAWN_PENALTY;
-        } else if rank < black_pawn_ranks[left_file] && rank < black_pawn_ranks[right_file] {
-            score += BACKWARDS_PAWN_PENALTY;
-        }
-
-        if rank >= white_pawn_ranks[left_file]
-            && rank >= white_pawn_ranks[pawn_file]
-            && rank >= white_pawn_ranks[right_file]
-        {
-            score -= rank as i32 * PASSED_PAWN_BONUS
-        }
-    }
-    score
-}
-
-fn get_rook_score(
-    white_pawn_ranks: &[u8; 10],
-    black_pawn_ranks: &[u8; 10],
-    piece: u8,
-    rank: u8,
-    pawn_file: usize,
-) -> i32 {
-    let mut score = 0;
-    if get_piece_color(piece) == WHITE {
-        if white_pawn_ranks[pawn_file] == 0 {
-            if black_pawn_ranks[pawn_file] == 7 {
-                score += ROOK_OPEN_FILE_BONUS
-            } else {
-                score += ROOK_SEMI_OPEN_FILE_BONUS
-            }
-        }
-
-        if rank == 1 {
-            score += ROOK_ON_SEVENTH_BONUS
-        }
-    } else {
-        if black_pawn_ranks[pawn_file] == 7 {
-            if white_pawn_ranks[pawn_file] == 0 {
-                score -= ROOK_OPEN_FILE_BONUS
-            } else {
-                score -= ROOK_SEMI_OPEN_FILE_BONUS
-            }
-        }
-
-        if rank == 6 {
-            score -= ROOK_ON_SEVENTH_BONUS
-        }
-    }
-    score
-}
-
 pub const fn flip_board<T: Copy>(board: &[T; 64]) -> [T; 64] {
     let mut flipped = *board;
     let mut rank = 0;
@@ -226,6 +111,15 @@ const ROOK_PST_BLACK: [i32; 64] = flip_board(&ROOK_PST);
 const BISHOP_PST_BLACK: [i32; 64] = flip_board(&BISHOP_PST);
 const QUEEN_PST_BLACK: [i32; 64] = flip_board(&QUEEN_PST);
 const KING_PST_BLACK: [i32; 64] = flip_board(&KING_PST);
+
+pub const DOUBLED_PAWN_PENALTY: i32 = 8;
+pub const ISOLATED_PAWN_PENALTY: i32 = 14;
+pub const BACKWARDS_PAWN_PENALTY: i32 = 6;
+pub const PASSED_PAWN_BONUS: i32 = 9;
+pub const ROOK_SEMI_OPEN_FILE_BONUS: i32 = 8;
+pub const ROOK_OPEN_FILE_BONUS: i32 = 18;
+pub const ROOK_ON_SEVENTH_BONUS: i32 = 5;
+pub const BISHOP_PAIR_BONUS: i32 = 45;
 
 pub fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
     let square64 = get_square_in_64(square);
@@ -275,6 +169,92 @@ pub fn get_piece_material_score(piece: u8) -> i32 {
     };
     let material_score = get_material_score(piece);
     side * material_score
+}
+
+fn bb_pawn_structure(bb_color: &[u64; 2], bb_piece: &[u64; 6]) -> i32 {
+    let white_pawns = bb_color[0] & bb_piece[0];
+    let black_pawns = bb_color[1] & bb_piece[0];
+
+    let mut score = 0;
+
+    // double pawns
+    let white_doubled = white_pawns & north_fill(white_pawns << 8);
+    let black_doubled = black_pawns & south_fill(black_pawns >> 8);
+
+    score -= DOUBLED_PAWN_PENALTY * white_doubled.count_ones() as i32;
+    score += DOUBLED_PAWN_PENALTY * black_doubled.count_ones() as i32;
+
+    // isolated pawns
+    let white_isolated = white_pawns & !adjacent_files(file_fill(white_pawns));
+    let black_isolated = black_pawns & !adjacent_files(file_fill(black_pawns));
+
+    score -= ISOLATED_PAWN_PENALTY * white_isolated.count_ones() as i32;
+    score += ISOLATED_PAWN_PENALTY * black_isolated.count_ones() as i32;
+
+    // passed pawns
+    let b_south = south_fill(black_pawns);
+    let b_sentinel = b_south | adjacent_files(south_fill(black_pawns >> 8));
+    let mut white_passed = white_pawns & !b_sentinel;
+    while white_passed != 0 {
+        let sq = white_passed.trailing_zeros() as i32;
+        let rank = sq / 8; // 0=rank1, 7=rank8
+        score += rank * PASSED_PAWN_BONUS;
+        white_passed &= white_passed - 1;
+    }
+
+    let w_north = north_fill(white_pawns);
+    let w_sentinel = w_north | adjacent_files(north_fill(white_pawns << 8));
+    let mut black_passed = black_pawns & !w_sentinel;
+    while black_passed != 0 {
+        let sq = black_passed.trailing_zeros() as i32;
+        let rank = sq / 8;
+        score -= (7 - rank) * PASSED_PAWN_BONUS;
+        black_passed &= black_passed - 1;
+    }
+
+    // backwards pawns
+    let white_stop = white_pawns << 8; // square in front of each pawn
+    let black_attacks = ((black_pawns & NOT_A) >> 9) | ((black_pawns & NOT_H) >> 7);
+    let white_behind = white_pawns & !south_fill(adjacent_files(white_pawns));
+    let white_backward = white_behind & !white_isolated & (white_stop & black_attacks) >> 8;
+
+    let black_stop = black_pawns >> 8; // square in front of each pawn
+    let white_attacks = ((white_pawns & NOT_A) << 7) | ((white_pawns & NOT_H) << 9);
+    let black_behind = black_pawns & !north_fill(adjacent_files(black_pawns));
+    let black_backward = black_behind & !black_isolated & (black_stop & white_attacks) << 8;
+
+    score -= BACKWARDS_PAWN_PENALTY * white_backward.count_ones() as i32;
+    score += BACKWARDS_PAWN_PENALTY * black_backward.count_ones() as i32;
+
+    score
+}
+
+pub fn bb_rook_score(bb_color: &[u64; 2], bb_piece: &[u64; 6]) -> i32 {
+    let white_pawns = bb_color[0] & bb_piece[0];
+    let black_pawns = bb_color[1] & bb_piece[0];
+    let white_rooks = bb_color[0] & bb_piece[3];
+    let black_rooks = bb_color[1] & bb_piece[3];
+
+    let w_pawn_files = file_fill(white_pawns);
+    let b_pawn_files = file_fill(black_pawns);
+
+    let open_files = !w_pawn_files & !b_pawn_files;
+    let w_semi_open = !w_pawn_files & b_pawn_files;
+    let b_semi_open = !b_pawn_files & w_pawn_files;
+
+    let mut score = 0;
+
+    // White rooks
+    score += ROOK_OPEN_FILE_BONUS * (white_rooks & open_files).count_ones() as i32;
+    score += ROOK_SEMI_OPEN_FILE_BONUS * (white_rooks & w_semi_open).count_ones() as i32;
+    score += ROOK_ON_SEVENTH_BONUS * (white_rooks & RANK_7).count_ones() as i32;
+
+    // Black rooks
+    score -= ROOK_OPEN_FILE_BONUS * (black_rooks & open_files).count_ones() as i32;
+    score -= ROOK_SEMI_OPEN_FILE_BONUS * (black_rooks & b_semi_open).count_ones() as i32;
+    score -= ROOK_ON_SEVENTH_BONUS * (black_rooks & RANK_2).count_ones() as i32;
+
+    score
 }
 
 pub fn evaluate(position: &Position) -> i32 {
@@ -346,186 +326,4 @@ mod tests {
             assert_eq!(eval, *expected, "Failed for FEN: {}", fen);
         }
     }
-}
-
-fn south_fill(mut bb: u64) -> u64 {
-    bb |= bb >> 8;
-    bb |= bb >> 16;
-    bb |= bb >> 32;
-    bb
-}
-
-fn north_fill(mut bb: u64) -> u64 {
-    bb |= bb << 8;
-    bb |= bb << 16;
-    bb |= bb << 32;
-    bb
-}
-
-fn file_fill(bb: u64) -> u64 {
-    north_fill(south_fill(bb))
-}
-
-const NOT_A: u64 = !0x0101010101010101;
-const NOT_H: u64 = !0x8080808080808080;
-
-fn adjacent_files(bb: u64) -> u64 {
-    ((bb & NOT_A) >> 1) | ((bb & NOT_H) << 1)
-}
-
-fn bb_pawn_structure(bb_color: &[u64; 2], bb_piece: &[u64; 6]) -> i32 {
-    let white_pawns = bb_color[0] & bb_piece[0];
-    let black_pawns = bb_color[1] & bb_piece[0];
-
-    let mut score = 0;
-
-    // double pawns
-    let white_doubled = white_pawns & north_fill(white_pawns << 8);
-    let black_doubled = black_pawns & south_fill(black_pawns >> 8);
-
-    score -= DOUBLED_PAWN_PENALTY * white_doubled.count_ones() as i32;
-    score += DOUBLED_PAWN_PENALTY * black_doubled.count_ones() as i32;
-
-    // isolated pawns
-    let white_isolated = white_pawns & !adjacent_files(file_fill(white_pawns));
-    let black_isolated = black_pawns & !adjacent_files(file_fill(black_pawns));
-
-    score -= ISOLATED_PAWN_PENALTY * white_isolated.count_ones() as i32;
-    score += ISOLATED_PAWN_PENALTY * black_isolated.count_ones() as i32;
-
-    // passed pawns
-    let b_south = south_fill(black_pawns);
-    let b_sentinel = b_south | adjacent_files(south_fill(black_pawns >> 8));
-    let mut white_passed = white_pawns & !b_sentinel;
-    while white_passed != 0 {
-        let sq = white_passed.trailing_zeros() as i32;
-        let rank = sq / 8; // 0=rank1, 7=rank8
-        score += rank * PASSED_PAWN_BONUS;
-        white_passed &= white_passed - 1;
-    }
-
-    let w_north = north_fill(white_pawns);
-    let w_sentinel = w_north | adjacent_files(north_fill(white_pawns << 8));
-    let mut black_passed = black_pawns & !w_sentinel;
-    while black_passed != 0 {
-        let sq = black_passed.trailing_zeros() as i32;
-        let rank = sq / 8;
-        score -= (7 - rank) * PASSED_PAWN_BONUS;
-        black_passed &= black_passed - 1;
-    }
-
-    // backwards pawns
-    let white_stop = white_pawns << 8; // square in front of each pawn
-    let black_attacks = ((black_pawns & NOT_A) >> 9) | ((black_pawns & NOT_H) >> 7);
-    let white_behind = white_pawns & !south_fill(adjacent_files(white_pawns));
-    let white_backward = white_behind & !white_isolated & (white_stop & black_attacks) >> 8;
-
-    let black_stop = black_pawns >> 8; // square in front of each pawn
-    let white_attacks = ((white_pawns & NOT_A) << 7) | ((white_pawns & NOT_H) << 9);
-    let black_behind = black_pawns & !north_fill(adjacent_files(black_pawns));
-    let black_backward = black_behind & !black_isolated & (black_stop & white_attacks) << 8;
-
-    score -= BACKWARDS_PAWN_PENALTY * white_backward.count_ones() as i32;
-    score += BACKWARDS_PAWN_PENALTY * black_backward.count_ones() as i32;
-
-    score
-}
-
-const RANK_7: u64 = 0x00FF000000000000; // rank 7 (black's 2nd rank)
-const RANK_2: u64 = 0x000000000000FF00; // rank 2 (white's 2nd rank)
-
-pub fn bb_rook_score(bb_color: &[u64; 2], bb_piece: &[u64; 6]) -> i32 {
-    let white_pawns = bb_color[0] & bb_piece[0];
-    let black_pawns = bb_color[1] & bb_piece[0];
-    let white_rooks = bb_color[0] & bb_piece[3];
-    let black_rooks = bb_color[1] & bb_piece[3];
-
-    let w_pawn_files = file_fill(white_pawns);
-    let b_pawn_files = file_fill(black_pawns);
-
-    let open_files = !w_pawn_files & !b_pawn_files;
-    let w_semi_open = !w_pawn_files & b_pawn_files;
-    let b_semi_open = !b_pawn_files & w_pawn_files;
-
-    let mut score = 0;
-
-    // White rooks
-    score += ROOK_OPEN_FILE_BONUS * (white_rooks & open_files).count_ones() as i32;
-    score += ROOK_SEMI_OPEN_FILE_BONUS * (white_rooks & w_semi_open).count_ones() as i32;
-    score += ROOK_ON_SEVENTH_BONUS * (white_rooks & RANK_7).count_ones() as i32;
-
-    // Black rooks
-    score -= ROOK_OPEN_FILE_BONUS * (black_rooks & open_files).count_ones() as i32;
-    score -= ROOK_SEMI_OPEN_FILE_BONUS * (black_rooks & b_semi_open).count_ones() as i32;
-    score -= ROOK_ON_SEVENTH_BONUS * (black_rooks & RANK_2).count_ones() as i32;
-
-    score
-}
-
-#[rustfmt::skip]
-#[repr(u8)]
-enum Square {
-    A1, B1, C1, D1, E1, F1, G1, H1,
-    A2, B2, C2, D2, E2, F2, G2, H2,
-    A3, B3, C3, D3, E3, F3, G3, H3,
-    A4, B4, C4, D4, E4, F4, G4, H4,
-    A5, B5, C5, D5, E5, F5, G5, H5,
-    A6, B6, C6, D6, E6, F6, G6, H6,
-    A7, B7, C7, D7, E7, F7, G7, H7,
-    A8, B8, C8, D8, E8, F8, G8, H8,
-}
-
-fn print_bb(bb: u64) {
-    for rank in (0..8).rev() {
-        for file in 0..8 {
-            let square = rank * 8 + file;
-            let bit = 1u64 << square;
-            if bb & bit != 0 {
-                print!("1 ");
-            } else {
-                print!(". ");
-            }
-        }
-        println!();
-    }
-    println!();
-}
-
-#[test]
-fn test_bb_pawn_structure() {
-    let mut bb_color = [0u64; 2];
-    let mut bb_piece = [0u64; 6];
-
-    bb_piece[0] = 0b0000000000010010010100000000100000001000100100000001001000000000;
-    bb_piece[5] = 0b0001000000000000000000000000000000000000000000000000000000010000;
-    bb_color[0] = 0b0000000000000000010000000000000000001000000100000001001000010000;
-    bb_color[1] = 0b0001000000010010000100000000100000000000100000000000000000000000;
-
-    let bb_score = bb_pawn_structure(&bb_color, &bb_piece);
-
-    let pawn_pos = Position::from_fen("4k3/1p2p3/4p1P1/3p4/3P4/4P2p/1P2P3/4K3 w - - 0 1");
-    let (white_pawn_ranks, black_pawn_ranks) = init_pawn_ranks(&pawn_pos.board);
-
-    let mut expected_score = 0;
-    for rank in 0..8 {
-        for file in 0..8 {
-            let square = rank * 16 + file;
-            let piece = pawn_pos.board[square];
-            let piece_type = get_piece_type(piece);
-            if piece_type == EMPTY {
-                continue;
-            }
-
-            if piece_type == PAWN {
-                expected_score += get_pawn_structure_score(
-                    &white_pawn_ranks,
-                    &black_pawn_ranks,
-                    piece,
-                    rank as u8,
-                    file + 1,
-                );
-            }
-        }
-    }
-    assert_eq!(bb_score, expected_score);
 }

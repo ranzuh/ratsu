@@ -1,3 +1,4 @@
+pub mod bitboard;
 pub mod evaluation;
 pub mod hash;
 pub mod movegen;

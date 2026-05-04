@@ -7,7 +7,7 @@ pub fn get_square_in_64(square_in_128: usize) -> usize {
     get_rank(square_in_128) * 8 + get_file(square_in_128)
 }
 
-fn sq128_to_sq64(sq88: usize) -> usize {
+fn sq88_to_bb(sq88: usize) -> usize {
     (7 - (sq88 >> 4)) * 8 + (sq88 & 7)
 }
 
@@ -293,7 +293,7 @@ impl Position {
 
     fn bb_remove_piece_from(&mut self, piece: u8, square: usize) {
         assert!(piece != EMPTY);
-        let bb_bit = 1u64 << sq128_to_sq64(square);
+        let bb_bit = 1u64 << sq88_to_bb(square);
         let bb_side = ((get_piece_color(piece) / 8) - 1) as usize;
         let bb_piece_type = (get_piece_type(piece) - 1) as usize;
         self.bb_color[bb_side] &= !bb_bit;
@@ -302,7 +302,7 @@ impl Position {
 
     fn bb_add_piece_to(&mut self, piece: u8, square: usize) {
         assert!(piece != EMPTY);
-        let bb_bit = 1u64 << sq128_to_sq64(square);
+        let bb_bit = 1u64 << sq88_to_bb(square);
         let bb_side = ((get_piece_color(piece) / 8) - 1) as usize;
         let bb_piece_type = (get_piece_type(piece) - 1) as usize;
         self.bb_color[bb_side] |= bb_bit;
