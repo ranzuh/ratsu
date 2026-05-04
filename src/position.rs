@@ -7,7 +7,7 @@ pub fn get_square_in_64(square_in_128: usize) -> usize {
     get_rank(square_in_128) * 8 + get_file(square_in_128)
 }
 
-fn sq88_to_bb(sq88: usize) -> usize {
+pub fn sq88_to_bb(sq88: usize) -> usize {
     (7 - (sq88 >> 4)) * 8 + (sq88 & 7)
 }
 

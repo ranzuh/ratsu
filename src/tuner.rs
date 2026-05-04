@@ -1,10 +1,11 @@
 use crate::{
-    evaluation::{flip_board, init_pawn_ranks},
+    bitboard::{NOT_A, NOT_H, RANK_2, RANK_7, adjacent_files, file_fill, north_fill, south_fill},
+    evaluation::flip_board,
     piece::{
         BISHOP, BLACK, EMPTY, KING, KNIGHT, PAWN, QUEEN, ROOK, WHITE, get_piece_color,
         get_piece_type, piece_from_char,
     },
-    position::get_square_in_64,
+    position::{get_square_in_64, sq88_to_bb},
 };
 
 use pyo3::prelude::*;
@@ -13,6 +14,10 @@ use rayon::prelude::*;
 struct LightPosition {
     board: [u8; 128],
     is_white_turn: bool,
+    bb_color: [u64; 2],
+    bb_piece: [u64; 6],
+    material_score: i32,
+    pst_score: i32,
 }
 
 impl LightPosition {
@@ -20,6 +25,10 @@ impl LightPosition {
         let mut pos = LightPosition {
             board: [EMPTY; 128],
             is_white_turn: false,
+            bb_color: [0u64; 2],
+            bb_piece: [0u64; 6],
+            material_score: 0,
+            pst_score: 0,
         };
         let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
 
@@ -43,6 +52,15 @@ impl LightPosition {
         }
 
         pos
+    }
+
+    fn bb_add_piece_to(&mut self, piece: u8, square: usize) {
+        assert!(piece != EMPTY);
+        let bb_bit = 1u64 << sq88_to_bb(square);
+        let bb_side = ((get_piece_color(piece) / 8) - 1) as usize;
+        let bb_piece_type = (get_piece_type(piece) - 1) as usize;
+        self.bb_color[bb_side] |= bb_bit;
+        self.bb_piece[bb_piece_type] |= bb_bit;
     }
 }
 
@@ -69,13 +87,13 @@ impl EvaluationDataset {
 
 #[pyfunction]
 fn eval_fen(fen: &str, weights: Vec<i32>) -> PyResult<i32> {
-    let pos = LightPosition::from_fen(fen);
     let w = Weights::from_vec(&weights);
-    Ok(evaluate_with_weights(&pos, &w))
+    let mut pos = LightPosition::from_fen(fen);
+    Ok(evaluate_with_weights(&mut pos, &w))
 }
 
 #[pyfunction]
-fn compute_mse(dataset: &EvaluationDataset, weights: Vec<i32>, k: f32) -> PyResult<f32> {
+fn compute_mse(dataset: &mut EvaluationDataset, weights: Vec<i32>, k: f32) -> PyResult<f32> {
     let w = Weights::from_vec(&weights);
 
     const SCALE: f64 = 1e9;
@@ -85,9 +103,15 @@ fn compute_mse(dataset: &EvaluationDataset, weights: Vec<i32>, k: f32) -> PyResu
     // to ensure compute_mse is deterministic.
     let total_error_int: i128 = dataset
         .positions
-        .par_iter()
+        .par_iter_mut()
         .zip(&dataset.results)
         .map(|(pos, result)| {
+            // zero mutable fields to eval score dont accumulate incorrectly
+            pos.bb_color = [0u64; 2];
+            pos.bb_piece = [0u64; 6];
+            pos.material_score = 0;
+            pos.pst_score = 0;
+
             let score_side_to_move = evaluate_with_weights(pos, &w) as f32;
             // Convert to white's perspective
             let score = if pos.is_white_turn {
@@ -197,12 +221,18 @@ impl Weights {
     }
 }
 
-fn evaluate_with_weights(position: &LightPosition, weights: &Weights) -> i32 {
+fn evaluate_with_weights(position: &mut LightPosition, weights: &Weights) -> i32 {
     let mut score = 0;
     let side = if position.is_white_turn { 1 } else { -1 };
-    let (white_pawn_ranks, black_pawn_ranks) = init_pawn_ranks(&position.board);
-    let mut white_bishops = 0;
-    let mut black_bishops = 0;
+
+    let white_bishops = (position.bb_color[0] & position.bb_piece[2]).count_ones();
+    let black_bishops = (position.bb_color[1] & position.bb_piece[2]).count_ones();
+    if white_bishops >= 2 {
+        score += weights.bishop_pair_bonus;
+    }
+    if black_bishops >= 2 {
+        score -= weights.bishop_pair_bonus;
+    }
 
     for rank in 0..8 {
         for file in 0..8 {
@@ -215,41 +245,14 @@ fn evaluate_with_weights(position: &LightPosition, weights: &Weights) -> i32 {
 
             score += get_piece_table_score_with_weights(square, piece, piece_type, weights);
             score += get_piece_material_score_with_weights(piece, weights);
-            if piece_type == BISHOP {
-                if get_piece_color(piece) == WHITE {
-                    white_bishops += 1;
-                } else {
-                    black_bishops += 1;
-                }
-            }
-            if piece_type == PAWN {
-                score += get_pawn_structure_score_with_weights(
-                    &white_pawn_ranks,
-                    &black_pawn_ranks,
-                    piece,
-                    rank as u8,
-                    file + 1,
-                    weights,
-                );
-            }
-            if piece_type == ROOK {
-                score += get_rook_score_with_weights(
-                    &white_pawn_ranks,
-                    &black_pawn_ranks,
-                    piece,
-                    rank as u8,
-                    file + 1,
-                    weights,
-                );
-            }
+
+            position.bb_add_piece_to(piece, square);
         }
     }
-    if white_bishops >= 2 {
-        score += weights.bishop_pair_bonus;
-    }
-    if black_bishops >= 2 {
-        score -= weights.bishop_pair_bonus;
-    }
+
+    score += bb_pawn_structure_with_weights(&position.bb_color, &position.bb_piece, weights);
+    score += bb_rook_score_with_weights(&position.bb_color, &position.bb_piece, weights);
+
     score * side
 }
 
@@ -308,88 +311,93 @@ fn get_piece_material_score_with_weights(piece: u8, weights: &Weights) -> i32 {
     side * material_score
 }
 
-fn get_pawn_structure_score_with_weights(
-    white_pawn_ranks: &[u8; 10],
-    black_pawn_ranks: &[u8; 10],
-    piece: u8,
-    rank: u8,
-    pawn_file: usize,
+fn bb_pawn_structure_with_weights(
+    bb_color: &[u64; 2],
+    bb_piece: &[u64; 6],
     weights: &Weights,
 ) -> i32 {
+    let white_pawns = bb_color[0] & bb_piece[0];
+    let black_pawns = bb_color[1] & bb_piece[0];
+
     let mut score = 0;
-    let left_file = pawn_file - 1;
-    let right_file = pawn_file + 1;
-    if get_piece_color(piece) == WHITE {
-        if white_pawn_ranks[pawn_file] > rank {
-            score -= weights.doubled_pawn_penalty;
-        }
 
-        if white_pawn_ranks[left_file] == 0 && white_pawn_ranks[right_file] == 0 {
-            score -= weights.isolated_pawn_penalty;
-        } else if rank > white_pawn_ranks[left_file] && rank > white_pawn_ranks[right_file] {
-            score -= weights.backwards_pawn_penalty;
-        }
+    // double pawns
+    let white_doubled = white_pawns & north_fill(white_pawns << 8);
+    let black_doubled = black_pawns & south_fill(black_pawns >> 8);
 
-        if rank <= black_pawn_ranks[left_file]
-            && rank <= black_pawn_ranks[pawn_file]
-            && rank <= black_pawn_ranks[right_file]
-        {
-            score += (7 - rank as i32) * weights.passed_pawn_bonus;
-        }
-    } else {
-        if black_pawn_ranks[pawn_file] < rank {
-            score += weights.doubled_pawn_penalty;
-        }
-        if black_pawn_ranks[left_file] == 7 && black_pawn_ranks[right_file] == 7 {
-            score += weights.isolated_pawn_penalty;
-        } else if rank < black_pawn_ranks[left_file] && rank < black_pawn_ranks[right_file] {
-            score += weights.backwards_pawn_penalty;
-        }
+    score -= weights.doubled_pawn_penalty * white_doubled.count_ones() as i32;
+    score += weights.doubled_pawn_penalty * black_doubled.count_ones() as i32;
 
-        if rank >= white_pawn_ranks[left_file]
-            && rank >= white_pawn_ranks[pawn_file]
-            && rank >= white_pawn_ranks[right_file]
-        {
-            score -= rank as i32 * weights.passed_pawn_bonus
-        }
+    // isolated pawns
+    let white_isolated = white_pawns & !adjacent_files(file_fill(white_pawns));
+    let black_isolated = black_pawns & !adjacent_files(file_fill(black_pawns));
+
+    score -= weights.isolated_pawn_penalty * white_isolated.count_ones() as i32;
+    score += weights.isolated_pawn_penalty * black_isolated.count_ones() as i32;
+
+    // passed pawns
+    let b_south = south_fill(black_pawns);
+    let b_sentinel = b_south | adjacent_files(south_fill(black_pawns >> 8));
+    let mut white_passed = white_pawns & !b_sentinel;
+    while white_passed != 0 {
+        let sq = white_passed.trailing_zeros() as i32;
+        let rank = sq / 8; // 0=rank1, 7=rank8
+        score += rank * weights.passed_pawn_bonus;
+        white_passed &= white_passed - 1;
     }
+
+    let w_north = north_fill(white_pawns);
+    let w_sentinel = w_north | adjacent_files(north_fill(white_pawns << 8));
+    let mut black_passed = black_pawns & !w_sentinel;
+    while black_passed != 0 {
+        let sq = black_passed.trailing_zeros() as i32;
+        let rank = sq / 8;
+        score -= (7 - rank) * weights.passed_pawn_bonus;
+        black_passed &= black_passed - 1;
+    }
+
+    // backwards pawns
+    let white_stop = white_pawns << 8; // square in front of each pawn
+    let black_attacks = ((black_pawns & NOT_A) >> 9) | ((black_pawns & NOT_H) >> 7);
+    let white_behind = white_pawns & !south_fill(adjacent_files(white_pawns));
+    let white_backward = white_behind & !white_isolated & (white_stop & black_attacks) >> 8;
+
+    let black_stop = black_pawns >> 8; // square in front of each pawn
+    let white_attacks = ((white_pawns & NOT_A) << 7) | ((white_pawns & NOT_H) << 9);
+    let black_behind = black_pawns & !north_fill(adjacent_files(black_pawns));
+    let black_backward = black_behind & !black_isolated & (black_stop & white_attacks) << 8;
+
+    score -= weights.backwards_pawn_penalty * white_backward.count_ones() as i32;
+    score += weights.backwards_pawn_penalty * black_backward.count_ones() as i32;
+
     score
 }
 
-fn get_rook_score_with_weights(
-    white_pawn_ranks: &[u8; 10],
-    black_pawn_ranks: &[u8; 10],
-    piece: u8,
-    rank: u8,
-    pawn_file: usize,
-    weights: &Weights,
-) -> i32 {
+fn bb_rook_score_with_weights(bb_color: &[u64; 2], bb_piece: &[u64; 6], weights: &Weights) -> i32 {
+    let white_pawns = bb_color[0] & bb_piece[0];
+    let black_pawns = bb_color[1] & bb_piece[0];
+    let white_rooks = bb_color[0] & bb_piece[3];
+    let black_rooks = bb_color[1] & bb_piece[3];
+
+    let w_pawn_files = file_fill(white_pawns);
+    let b_pawn_files = file_fill(black_pawns);
+
+    let open_files = !w_pawn_files & !b_pawn_files;
+    let w_semi_open = !w_pawn_files & b_pawn_files;
+    let b_semi_open = !b_pawn_files & w_pawn_files;
+
     let mut score = 0;
-    if get_piece_color(piece) == WHITE {
-        if black_pawn_ranks[pawn_file] == 7 {
-            if white_pawn_ranks[pawn_file] == 0 {
-                score += weights.rook_open_file_bonus
-            } else {
-                score += weights.rook_semi_open_file_bonus
-            }
-        }
 
-        if rank == 1 {
-            score += weights.rook_on_seventh_bonus
-        }
-    } else {
-        if white_pawn_ranks[pawn_file] == 0 {
-            if black_pawn_ranks[pawn_file] == 7 {
-                score -= weights.rook_open_file_bonus
-            } else {
-                score -= weights.rook_semi_open_file_bonus
-            }
-        }
+    // White rooks
+    score += weights.rook_open_file_bonus * (white_rooks & open_files).count_ones() as i32;
+    score += weights.rook_semi_open_file_bonus * (white_rooks & w_semi_open).count_ones() as i32;
+    score += weights.rook_on_seventh_bonus * (white_rooks & RANK_7).count_ones() as i32;
 
-        if rank == 6 {
-            score -= weights.rook_on_seventh_bonus
-        }
-    }
+    // Black rooks
+    score -= weights.rook_open_file_bonus * (black_rooks & open_files).count_ones() as i32;
+    score -= weights.rook_semi_open_file_bonus * (black_rooks & b_semi_open).count_ones() as i32;
+    score -= weights.rook_on_seventh_bonus * (black_rooks & RANK_2).count_ones() as i32;
+
     score
 }
 
@@ -434,24 +442,24 @@ mod tests {
     fn test_evaluate_with_weights() {
         let pos = Position::from_fen(START_POSITION_FEN);
         let eval = evaluate(&pos);
-        let light_pos = LightPosition::from_fen(START_POSITION_FEN);
-        let eval_with_default_weights = evaluate_with_weights(&light_pos, &DEFAULT_WEIGHTS);
+        let mut light_pos = LightPosition::from_fen(START_POSITION_FEN);
+        let eval_with_default_weights = evaluate_with_weights(&mut light_pos, &DEFAULT_WEIGHTS);
         assert_eq!(eval, eval_with_default_weights);
 
         let pawn_pos = Position::from_fen("4k3/1p2p3/4p1P1/3p4/3P4/4P2p/1P2P3/4K3 w - - 0 1");
         let pawn_eval = evaluate(&pawn_pos);
-        let light_pawn_pos =
+        let mut light_pawn_pos =
             LightPosition::from_fen("4k3/1p2p3/4p1P1/3p4/3P4/4P2p/1P2P3/4K3 w - - 0 1");
         let pawn_eval_with_default_weights =
-            evaluate_with_weights(&light_pawn_pos, &DEFAULT_WEIGHTS);
+            evaluate_with_weights(&mut light_pawn_pos, &DEFAULT_WEIGHTS);
         assert_eq!(pawn_eval, pawn_eval_with_default_weights);
 
         let rook_pos = Position::from_fen("2r1kr2/Rp1p1p2/8/8/8/8/rP1P2P1/2R1K1R1 w - - 0 1");
         let rook_eval = evaluate(&rook_pos);
-        let light_rook_pos =
+        let mut light_rook_pos =
             LightPosition::from_fen("2r1kr2/Rp1p1p2/8/8/8/8/rP1P2P1/2R1K1R1 w - - 0 1");
         let rook_eval_with_default_weights =
-            evaluate_with_weights(&light_rook_pos, &DEFAULT_WEIGHTS);
+            evaluate_with_weights(&mut light_rook_pos, &DEFAULT_WEIGHTS);
         assert_eq!(rook_eval, rook_eval_with_default_weights);
     }
 
