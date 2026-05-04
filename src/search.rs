@@ -47,6 +47,7 @@ pub fn is_legal(position: &mut Position) -> bool {
     is_legal
 }
 
+#[allow(dead_code)]
 fn print_search_stats(stats: &SearchStats) {
     let first_move_cut_pct = if stats.cut_nodes > 0 {
         stats.first_move_cuts as f64 / stats.cut_nodes as f64 * 100.0
