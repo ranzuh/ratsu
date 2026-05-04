@@ -6,6 +6,10 @@ pub fn get_square_in_64(square_in_128: usize) -> usize {
     get_rank(square_in_128) * 8 + get_file(square_in_128)
 }
 
+fn sq128_to_sq64(sq88: usize) -> usize {
+    (7 - (sq88 >> 4)) * 8 + (sq88 & 7)
+}
+
 #[derive(Clone)]
 pub struct Position {
     pub board: [u8; 128],
@@ -19,6 +23,8 @@ pub struct Position {
     pub repetition_stack: [u64; 1024],
     pub repetition_index: usize,
     pub fifty: u8,
+    pub bb_color: [u64; 2],
+    pub bb_piece: [u64; 6],
 
     prev_target_piece: [u8; 64],
     prev_castling_rights: [[bool; 4]; 64],
@@ -77,6 +83,8 @@ impl Position {
             repetition_stack: [0u64; 1024],
             repetition_index: 0,
             fifty: 0,
+            bb_color: [0u64; 2],
+            bb_piece: [0u64; 6],
 
             prev_target_piece: [0u8; 64],
             prev_castling_rights: [[false, false, false, false]; 64],
@@ -116,6 +124,9 @@ impl Position {
                 }
                 let piece = piece_from_char(c);
                 pos.board[i] = piece;
+
+                pos.bb_add_piece_to(piece, i);
+
                 i += 1;
             }
         }
@@ -198,24 +209,32 @@ impl Position {
             118 => {
                 self.board[119] = EMPTY;
                 self.board[117] = WHITE | ROOK;
+                self.bb_remove_piece_from(WHITE | ROOK, 119);
+                self.bb_add_piece_to(WHITE | ROOK, 117);
                 self.hash ^= self.piece_hash(119, WHITE | ROOK);
                 self.hash ^= self.piece_hash(117, WHITE | ROOK);
             }
             114 => {
                 self.board[112] = EMPTY;
                 self.board[115] = WHITE | ROOK;
+                self.bb_remove_piece_from(WHITE | ROOK, 112);
+                self.bb_add_piece_to(WHITE | ROOK, 115);
                 self.hash ^= self.piece_hash(112, WHITE | ROOK);
                 self.hash ^= self.piece_hash(115, WHITE | ROOK);
             }
             6 => {
                 self.board[7] = EMPTY;
                 self.board[5] = BLACK | ROOK;
+                self.bb_remove_piece_from(BLACK | ROOK, 7);
+                self.bb_add_piece_to(BLACK | ROOK, 5);
                 self.hash ^= self.piece_hash(7, BLACK | ROOK);
                 self.hash ^= self.piece_hash(5, BLACK | ROOK);
             }
             2 => {
                 self.board[0] = EMPTY;
                 self.board[3] = BLACK | ROOK;
+                self.bb_remove_piece_from(BLACK | ROOK, 0);
+                self.bb_add_piece_to(BLACK | ROOK, 3);
                 self.hash ^= self.piece_hash(0, BLACK | ROOK);
                 self.hash ^= self.piece_hash(3, BLACK | ROOK);
             }
@@ -228,21 +247,47 @@ impl Position {
             118 => {
                 self.board[119] = WHITE | ROOK;
                 self.board[117] = EMPTY;
+                self.bb_remove_piece_from(WHITE | ROOK, 117);
+                self.bb_add_piece_to(WHITE | ROOK, 119);
             }
             114 => {
                 self.board[112] = WHITE | ROOK;
                 self.board[115] = EMPTY;
+                self.bb_remove_piece_from(WHITE | ROOK, 115);
+                self.bb_add_piece_to(WHITE | ROOK, 112);
             }
             6 => {
                 self.board[7] = BLACK | ROOK;
                 self.board[5] = EMPTY;
+                self.bb_remove_piece_from(BLACK | ROOK, 5);
+                self.bb_add_piece_to(BLACK | ROOK, 7);
             }
             2 => {
                 self.board[0] = BLACK | ROOK;
                 self.board[3] = EMPTY;
+                self.bb_remove_piece_from(BLACK | ROOK, 3);
+                self.bb_add_piece_to(BLACK | ROOK, 0);
             }
             _ => panic!("invalid square to move to"),
         }
+    }
+
+    fn bb_remove_piece_from(&mut self, piece: u8, square: usize) {
+        assert!(piece != EMPTY);
+        let bb_bit = 1u64 << sq128_to_sq64(square);
+        let bb_side = ((get_piece_color(piece) / 8) - 1) as usize;
+        let bb_piece_type = (get_piece_type(piece) - 1) as usize;
+        self.bb_color[bb_side] &= !bb_bit;
+        self.bb_piece[bb_piece_type] &= !bb_bit;
+    }
+
+    fn bb_add_piece_to(&mut self, piece: u8, square: usize) {
+        assert!(piece != EMPTY);
+        let bb_bit = 1u64 << sq128_to_sq64(square);
+        let bb_side = ((get_piece_color(piece) / 8) - 1) as usize;
+        let bb_piece_type = (get_piece_type(piece) - 1) as usize;
+        self.bb_color[bb_side] |= bb_bit;
+        self.bb_piece[bb_piece_type] |= bb_bit;
     }
 
     pub fn make_move(&mut self, move_: &Move, ply: u32) {
@@ -341,28 +386,36 @@ impl Position {
         if move_.is_enpassant {
             if self.is_white_turn {
                 self.board[move_.to + 16] = EMPTY;
+                self.bb_remove_piece_from(BLACK | PAWN, move_.to + 16);
                 self.hash ^= self.piece_hash(move_.to + 16, BLACK | PAWN);
             } else {
                 self.board[move_.to - 16] = EMPTY;
+                self.bb_remove_piece_from(WHITE | PAWN, move_.to - 16);
                 self.hash ^= self.piece_hash(move_.to - 16, WHITE | PAWN);
             }
         }
 
         if move_.is_capture {
             let target_piece = self.board[move_.to];
+            if target_piece != EMPTY {
+                self.bb_remove_piece_from(target_piece, move_.to);
+            }
             self.hash ^= self.piece_hash(move_.to, target_piece);
             self.fifty = 0;
         }
 
         if let Some(prom_piece) = move_.promoted_piece {
             self.board[move_.to] = prom_piece;
+            self.bb_add_piece_to(prom_piece, move_.to);
             self.hash ^= self.piece_hash(move_.to, prom_piece);
         } else {
             self.board[move_.to] = piece;
+            self.bb_add_piece_to(piece, move_.to);
             self.hash ^= self.piece_hash(move_.to, piece);
         }
 
         self.board[move_.from] = EMPTY;
+        self.bb_remove_piece_from(piece, move_.from);
         self.hash ^= self.piece_hash(move_.from, piece);
         self.is_white_turn = !self.is_white_turn;
         self.hash ^= self.keys.black_to_move_key;
@@ -372,24 +425,36 @@ impl Position {
         if move_.is_castling {
             self.revert_castling_move(move_);
         }
-        let piece = self.board[move_.to];
-        self.board[move_.from] = piece;
+        let mut piece = self.board[move_.to];
+        self.bb_remove_piece_from(piece, move_.to);
+
         self.board[move_.to] = self.prev_target_piece[ply as usize];
+
+        if self.prev_target_piece[ply as usize] != EMPTY {
+            self.bb_add_piece_to(self.prev_target_piece[ply as usize], move_.to);
+        }
+
         self.is_white_turn = !self.is_white_turn;
         if move_.is_enpassant {
             if self.is_white_turn {
                 self.board[move_.to + 16] = BLACK | PAWN;
+                self.bb_add_piece_to(BLACK | PAWN, move_.to + 16);
             } else {
                 self.board[move_.to - 16] = WHITE | PAWN;
+                self.bb_add_piece_to(WHITE | PAWN, move_.to - 16);
             }
         }
         if move_.promoted_piece.is_some() {
             if self.is_white_turn {
-                self.board[move_.from] = WHITE | PAWN;
+                piece = WHITE | PAWN;
             } else {
-                self.board[move_.from] = BLACK | PAWN;
+                piece = BLACK | PAWN;
             }
         }
+
+        self.board[move_.from] = piece;
+        self.bb_add_piece_to(piece, move_.from);
+
         self.castling_rights = self.prev_castling_rights[ply as usize];
         self.king_squares = self.prev_king_squares[ply as usize];
         self.enpassant_square = self.prev_ep_square[ply as usize];
