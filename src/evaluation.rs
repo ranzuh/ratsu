@@ -15,7 +15,7 @@ pub const MATERIAL_QUEEN: i32 = 1000;
 pub const MATERIAL_KING: i32 = 20000;
 
 #[rustfmt::skip]
-pub const PAWN_PST: [i32; 64] = [
+pub const PAWN_MG_PST: [i32; 64] = [
       0,    0,    0,    0,    0,    0,    0,    0,
     124,   93,   88,   68,   66,   70,   92,  102,
      48,   44,   34,    9,   17,   35,   40,   39,
@@ -27,7 +27,7 @@ pub const PAWN_PST: [i32; 64] = [
 ];
 
 #[rustfmt::skip]
-pub const KNIGHT_PST: [i32; 64] = [
+pub const KNIGHT_MG_PST: [i32; 64] = [
     -152,  -84,  -53,  -50,  -45,  -86,  -80, -131,
      -72,  -40,    9,  -17,   -5,   -1,  -38,  -48,
      -40,  -19,    6,   19,   13,   20,   -5,  -37,
@@ -39,7 +39,7 @@ pub const KNIGHT_PST: [i32; 64] = [
 ];
 
 #[rustfmt::skip]
-pub const BISHOP_PST: [i32; 64] = [
+pub const BISHOP_MG_PST: [i32; 64] = [
     -32,  -39,  -27,  -25,  -27,  -29,  -25,  -36,
     -35,   -8,  -16,  -16,   -4,    4,   -8,  -11,
     -15,   -3,   13,    8,   10,   16,    7,    7,
@@ -51,7 +51,7 @@ pub const BISHOP_PST: [i32; 64] = [
 ];
 
 #[rustfmt::skip]
-pub const ROOK_PST: [i32; 64] = [
+pub const ROOK_MG_PST: [i32; 64] = [
     33,   27,   27,   23,   25,   24,   20,   23,
     20,   21,   23,   23,   15,   24,   21,   16,
     20,   19,   15,   18,   15,   21,   18,   14,
@@ -63,7 +63,7 @@ pub const ROOK_PST: [i32; 64] = [
 ];
 
 #[rustfmt::skip]
-pub const QUEEN_PST: [i32; 64] = [
+pub const QUEEN_MG_PST: [i32; 64] = [
      1,   23,   38,   50,   46,   50,   20,   33,
     -6,   -9,   13,   31,   28,   87,   59,   64,
     -5,   11,   35,   44,   68,   68,   72,   60,
@@ -75,7 +75,79 @@ pub const QUEEN_PST: [i32; 64] = [
 ];
 
 #[rustfmt::skip]
-pub const KING_PST: [i32; 64] = [
+pub const KING_MG_PST: [i32; 64] = [
+    -40,  -10,  -12,   -5,   -5,    1,   -5,  -25,
+     -9,   15,    9,    8,   10,   25,   19,    4,
+     -7,   21,   16,   16,   16,   27,   32,   10,
+    -16,    5,   15,   17,   15,   20,   19,    3,
+    -29,    0,   11,   14,   18,   16,    9,  -12,
+    -23,   -1,    7,   12,   13,   13,    9,   -8,
+    -16,   -3,    3,   -5,   -3,    7,    8,   -5,
+    -36,    4,   -1,  -30,   -6,  -21,    2,  -18,
+];
+
+#[rustfmt::skip]
+pub const PAWN_EG_PST: [i32; 64] = [
+      0,    0,    0,    0,    0,    0,    0,    0,
+    124,   93,   88,   68,   66,   70,   92,  102,
+     48,   44,   34,    9,   17,   35,   40,   39,
+      4,   -2,   -9,  -10,    0,   -6,   -2,   -4,
+    -19,  -15,  -18,   -6,   -9,  -16,  -17,  -30,
+    -16,  -19,  -13,  -19,   -8,  -15,   -3,  -15,
+    -17,  -17,  -22,  -28,  -20,    5,    1,  -11,
+      0,    0,    0,    0,    0,    0,    0,    0,
+];
+
+#[rustfmt::skip]
+pub const KNIGHT_EG_PST: [i32; 64] = [
+    -152,  -84,  -53,  -50,  -45,  -86,  -80, -131,
+     -72,  -40,    9,  -17,   -5,   -1,  -38,  -48,
+     -40,  -19,    6,   19,   13,   20,   -5,  -37,
+     -19,   -2,    0,   30,   13,   16,   -7,  -15,
+     -27,  -16,    6,    4,   12,    5,  -13,  -30,
+     -34,  -18,    1,    1,    5,    1,   -1,  -37,
+     -39,  -44,  -23,  -10,   -9,  -12,  -25,  -23,
+     -75,  -37,  -52,  -34,  -38,  -23,  -39,  -70,
+];
+
+#[rustfmt::skip]
+pub const BISHOP_EG_PST: [i32; 64] = [
+    -32,  -39,  -27,  -25,  -27,  -29,  -25,  -36,
+    -35,   -8,  -16,  -16,   -4,    4,   -8,  -11,
+    -15,   -3,   13,    8,   10,   16,    7,    7,
+    -16,   -8,    5,   13,   13,   -2,   -5,  -15,
+    -19,   -4,    4,   11,   17,    1,   -4,  -31,
+     -4,    5,    5,    6,    7,    8,   -2,   -5,
+    -20,    4,   -4,   -7,   -1,    3,   19,   -9,
+    -24,  -24,  -19,  -16,  -21,  -27,  -29,  -23,
+];
+
+#[rustfmt::skip]
+pub const ROOK_EG_PST: [i32; 64] = [
+    33,   27,   27,   23,   25,   24,   20,   23,
+    20,   21,   23,   23,   15,   24,   21,   16,
+    20,   19,   15,   18,   15,   21,   18,   14,
+    14,   12,   18,   14,   11,   16,   14,   16,
+     5,    7,    6,    9,    7,    8,    6,   -4,
+    -6,    2,    3,    5,    6,    5,    2,   -5,
+    -9,    1,    3,    4,    3,    8,    8,  -22,
+     1,    7,   14,   17,   16,   13,  -15,  -19,
+];
+
+#[rustfmt::skip]
+pub const QUEEN_EG_PST: [i32; 64] = [
+     1,   23,   38,   50,   46,   50,   20,   33,
+    -6,   -9,   13,   31,   28,   87,   59,   64,
+    -5,   11,   35,   44,   68,   68,   72,   60,
+    -5,   14,   20,   26,   42,   48,   29,   41,
+     4,   20,   19,   26,   36,   29,   37,   19,
+    -1,   19,   25,   25,   26,   31,   33,   15,
+     6,   24,   25,   27,   31,   26,   21,   12,
+    25,    6,   12,   25,   12,    5,  -18,   -1,
+];
+
+#[rustfmt::skip]
+pub const KING_EG_PST: [i32; 64] = [
     -40,  -10,  -12,   -5,   -5,    1,   -5,  -25,
      -9,   15,    9,    8,   10,   25,   19,    4,
      -7,   21,   16,   16,   16,   27,   32,   10,
@@ -105,12 +177,19 @@ pub const fn flip_board<T: Copy>(board: &[T; 64]) -> [T; 64] {
     flipped
 }
 
-const PAWN_PST_BLACK: [i32; 64] = flip_board(&PAWN_PST);
-const KNIGHT_PST_BLACK: [i32; 64] = flip_board(&KNIGHT_PST);
-const ROOK_PST_BLACK: [i32; 64] = flip_board(&ROOK_PST);
-const BISHOP_PST_BLACK: [i32; 64] = flip_board(&BISHOP_PST);
-const QUEEN_PST_BLACK: [i32; 64] = flip_board(&QUEEN_PST);
-const KING_PST_BLACK: [i32; 64] = flip_board(&KING_PST);
+const PAWN_MG_PST_BLACK: [i32; 64] = flip_board(&PAWN_MG_PST);
+const KNIGHT_MG_PST_BLACK: [i32; 64] = flip_board(&KNIGHT_MG_PST);
+const ROOK_MG_PST_BLACK: [i32; 64] = flip_board(&ROOK_MG_PST);
+const BISHOP_MG_PST_BLACK: [i32; 64] = flip_board(&BISHOP_MG_PST);
+const QUEEN_MG_PST_BLACK: [i32; 64] = flip_board(&QUEEN_MG_PST);
+const KING_MG_PST_BLACK: [i32; 64] = flip_board(&KING_MG_PST);
+
+const PAWN_EG_PST_BLACK: [i32; 64] = flip_board(&PAWN_EG_PST);
+const KNIGHT_EG_PST_BLACK: [i32; 64] = flip_board(&KNIGHT_EG_PST);
+const ROOK_EG_PST_BLACK: [i32; 64] = flip_board(&ROOK_EG_PST);
+const BISHOP_EG_PST_BLACK: [i32; 64] = flip_board(&BISHOP_EG_PST);
+const QUEEN_EG_PST_BLACK: [i32; 64] = flip_board(&QUEEN_EG_PST);
+const KING_EG_PST_BLACK: [i32; 64] = flip_board(&KING_EG_PST);
 
 pub const DOUBLED_PAWN_PENALTY: i32 = 8;
 pub const ISOLATED_PAWN_PENALTY: i32 = 14;
@@ -121,27 +200,53 @@ pub const ROOK_OPEN_FILE_BONUS: i32 = 18;
 pub const ROOK_ON_SEVENTH_BONUS: i32 = 5;
 pub const BISHOP_PAIR_BONUS: i32 = 45;
 
-pub fn get_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
+pub fn get_mg_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
     let square64 = get_square_in_64(square);
 
     if get_piece_color(piece) == WHITE {
         match piece_type {
-            PAWN => PAWN_PST[square64],
-            KNIGHT => KNIGHT_PST[square64],
-            BISHOP => BISHOP_PST[square64],
-            ROOK => ROOK_PST[square64],
-            QUEEN => QUEEN_PST[square64],
-            KING => KING_PST[square64],
+            PAWN => PAWN_MG_PST[square64],
+            KNIGHT => KNIGHT_MG_PST[square64],
+            BISHOP => BISHOP_MG_PST[square64],
+            ROOK => ROOK_MG_PST[square64],
+            QUEEN => QUEEN_MG_PST[square64],
+            KING => KING_MG_PST[square64],
             _ => panic!("Unexpected piece {}", piece),
         }
     } else {
         match piece_type {
-            PAWN => -PAWN_PST_BLACK[square64],
-            KNIGHT => -KNIGHT_PST_BLACK[square64],
-            BISHOP => -BISHOP_PST_BLACK[square64],
-            ROOK => -ROOK_PST_BLACK[square64],
-            QUEEN => -QUEEN_PST_BLACK[square64],
-            KING => -KING_PST_BLACK[square64],
+            PAWN => -PAWN_MG_PST_BLACK[square64],
+            KNIGHT => -KNIGHT_MG_PST_BLACK[square64],
+            BISHOP => -BISHOP_MG_PST_BLACK[square64],
+            ROOK => -ROOK_MG_PST_BLACK[square64],
+            QUEEN => -QUEEN_MG_PST_BLACK[square64],
+            KING => -KING_MG_PST_BLACK[square64],
+            _ => panic!("Unexpected piece {}", piece),
+        }
+    }
+}
+
+pub fn get_eg_piece_table_score(square: usize, piece: u8, piece_type: u8) -> i32 {
+    let square64 = get_square_in_64(square);
+
+    if get_piece_color(piece) == WHITE {
+        match piece_type {
+            PAWN => PAWN_EG_PST[square64],
+            KNIGHT => KNIGHT_EG_PST[square64],
+            BISHOP => BISHOP_EG_PST[square64],
+            ROOK => ROOK_EG_PST[square64],
+            QUEEN => QUEEN_EG_PST[square64],
+            KING => KING_EG_PST[square64],
+            _ => panic!("Unexpected piece {}", piece),
+        }
+    } else {
+        match piece_type {
+            PAWN => -PAWN_EG_PST_BLACK[square64],
+            KNIGHT => -KNIGHT_EG_PST_BLACK[square64],
+            BISHOP => -BISHOP_EG_PST_BLACK[square64],
+            ROOK => -ROOK_EG_PST_BLACK[square64],
+            QUEEN => -QUEEN_EG_PST_BLACK[square64],
+            KING => -KING_EG_PST_BLACK[square64],
             _ => panic!("Unexpected piece {}", piece),
         }
     }
@@ -270,7 +375,13 @@ pub fn evaluate(position: &Position) -> i32 {
         score -= BISHOP_PAIR_BONUS;
     }
 
-    score += position.material_score + position.pst_score;
+    let mg_phase = position.phase_value.clamp(0, 6400);
+    let eg_phase = 6400 - mg_phase;
+
+    let tapered_pst_score =
+        (position.mg_pst_score * mg_phase + position.eg_pst_score * eg_phase) / 6400;
+
+    score += position.material_score + tapered_pst_score;
     score += bb_pawn_structure(&position.bb_color, &position.bb_piece);
     score += bb_rook_score(&position.bb_color, &position.bb_piece);
 
