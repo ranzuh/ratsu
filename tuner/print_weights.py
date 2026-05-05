@@ -20,12 +20,18 @@ def print_weights(weights):
         "bishop_pair_bonus",
     ]
     pst_names = [
-        "pawn_pst",
-        "knight_pst",
-        "bishop_pst",
-        "rook_pst",
-        "queen_pst",
-        "king_pst",
+        "pawn_mg_pst",
+        "knight_mg_pst",
+        "bishop_mg_pst",
+        "rook_mg_pst",
+        "queen_mg_pst",
+        "king_mg_pst",
+        "pawn_eg_pst",
+        "knight_eg_pst",
+        "bishop_eg_pst",
+        "rook_eg_pst",
+        "queen_eg_pst",
+        "king_eg_pst",
     ]
 
     # scalars

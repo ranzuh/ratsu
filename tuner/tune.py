@@ -37,7 +37,7 @@ def load_positions(filename):
     return positions
 
 
-def mse(weights, positions, K=1.13):
+def mse(weights, positions, K):
     error = 0.0
     for fen, result in positions:
         score = ratsu.eval_fen(fen, weights)
@@ -48,17 +48,17 @@ def mse(weights, positions, K=1.13):
 
 MATERIAL_INDICES = {0, 1, 2, 3, 4, 5}
 BONUS_INDICES = {6, 7, 8, 9, 10, 11, 12, 13}
-PST_INDICES = [(14 + i * 64, 14 + i * 64 + 64) for i in range(6)]
+PST_INDICES = [(14 + i * 64, 14 + i * 64 + 64) for i in range(12)]
 PAWN_PST_INDICES = {i for i in range(14, 14 + 64)}
 
-IMPROVED_ERROR_TOLERANCE = 0.000001
+BISHOP_INDICES = {13} | {i for i in range(142, 142+64)} | {i for i in range(526, 526+64)}
 
-def tune_with_annealing(dataset, initial_weights, K=1.13):
+def tune_with_annealing(dataset, initial_weights, K):
     best_weights = initial_weights.copy()
     best_error = ratsu.compute_mse(dataset, best_weights, K)
     print(f"Starting MSE: {best_error}")
 
-    step_sizes = [30, 10, 5, 2, 1]  # coarse to fine
+    step_sizes = [1]  # coarse to fine
 
     for step in step_sizes:
         print(f"\n--- Step size: {step} ---")
@@ -67,7 +67,7 @@ def tune_with_annealing(dataset, initial_weights, K=1.13):
             improved = False
             # TODO: shuffle parameter order to avoid bias
             for i in range(len(best_weights)):
-                if i in MATERIAL_INDICES:
+                if i not in BISHOP_INDICES:
                     continue  # skip material weights for now
                 # if i not in BONUS_INDICES:
                 #     continue  # only tune piece-square weights for now
@@ -77,7 +77,7 @@ def tune_with_annealing(dataset, initial_weights, K=1.13):
                 new_weights = best_weights.copy()
                 new_weights[i] += step
                 new_error = ratsu.compute_mse(dataset, new_weights, K)
-                if new_error < best_error - IMPROVED_ERROR_TOLERANCE:
+                if new_error < best_error:
                     assert i not in {14, 15, 16, 17, 18, 19, 20, 21}
                     best_error = new_error
                     best_weights = new_weights
@@ -85,7 +85,7 @@ def tune_with_annealing(dataset, initial_weights, K=1.13):
                 else:
                     new_weights[i] -= 2 * step
                     new_error = ratsu.compute_mse(dataset, new_weights, K)
-                    if new_error < best_error - IMPROVED_ERROR_TOLERANCE:
+                    if new_error < best_error:
                         assert i not in {14, 15, 16, 17, 18, 19, 20, 21}
                         best_error = new_error
                         best_weights = new_weights
@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
     dataset = ratsu.EvaluationDataset(positions)
 
-    init_weights = load_weights("tuner/weights_material_only.json")
+    init_weights = load_weights("tuner/weights_step1_mse0.064587_best_all.json")
     print(f"loaded {len(init_weights)} weights")
 
     # debug stuff
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     # for k_int in range(140, 200, 1):
     #     print(f"Testing K={k_int/100:.2f}...")
     #     k = k_int / 100
-    #     mse = ratsu.compute_mse(positions, init_weights, k)
+    #     mse = ratsu.compute_mse(dataset, init_weights, k)
     #     if mse < best_mse:
     #         print(f"New best K: {k}, MSE: {mse}")
     #         best_k, best_mse = k, mse

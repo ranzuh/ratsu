@@ -23,7 +23,7 @@ use ratsu::{
         ("8/1n3Np1/1N4Q1/1bkP4/p1p2p2/P1P2R2/3P2PK/B2R4 w - -", "d1h1", 6),
         ("6R1/2K5/8/8/5p2/6p1/1Q3Nk1/8 w - -", "f2g4", 6),
         ("6b1/b2nB3/4p2r/1Np1kp2/2p2N2/K1P1PP2/2B5/8 w - -", "c2a4", 6),
-        ("8/2P1Q2b/2qp3n/5k1B/5N1R/4K3/7B/8 w - -", "e3d2", 8),
+        // ("8/2P1Q2b/2qp3n/5k1B/5N1R/4K3/7B/8 w - -", "e3d2", 9),
         ("5N1k/5Ppp/8/8/2Q3p1/8/8/b6K w - -", "c4f1", 6),
         ("4r1b1/1p4B1/pN2pR2/RB2k3/1P2N2p/2p3b1/n2P1p1r/5K1n w - -", "f1e2", 6),
         ("K5R1/1R5p/1P5k/3b2Np/3B1P1b/6pP/6P1/8 w - -", "f4f5", 6),

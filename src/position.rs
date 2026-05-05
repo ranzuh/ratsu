@@ -1,4 +1,6 @@
-use crate::evaluation::{get_eg_piece_table_score, get_mg_piece_table_score, get_piece_material_score};
+use crate::evaluation::{
+    get_eg_piece_table_score, get_mg_piece_table_score, get_piece_material_score,
+};
 use crate::hash::ZobristKeys;
 use crate::movegen::{BOARD_SQUARES, Move, get_file, get_rank, get_square_string, is_off_board};
 use crate::piece::*;
@@ -350,7 +352,7 @@ impl Position {
         self.prev_material_score[ply as usize] = self.material_score;
         self.prev_mg_pst_score[ply as usize] = self.mg_pst_score;
         self.prev_eg_pst_score[ply as usize] = self.eg_pst_score;
-        self.prev_phase_value[ply as usize] = self.eg_pst_score;
+        self.prev_phase_value[ply as usize] = self.phase_value;
 
         let piece = self.board[move_.from];
         let piece_type = get_piece_type(piece);
