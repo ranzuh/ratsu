@@ -243,15 +243,6 @@ fn evaluate_with_weights(position: &mut LightPosition, weights: &Weights) -> i32
     let mut score = 0;
     let side = if position.is_white_turn { 1 } else { -1 };
 
-    let white_bishops = (position.bb_color[0] & position.bb_piece[2]).count_ones();
-    let black_bishops = (position.bb_color[1] & position.bb_piece[2]).count_ones();
-    if white_bishops >= 2 {
-        score += weights.bishop_pair_bonus;
-    }
-    if black_bishops >= 2 {
-        score -= weights.bishop_pair_bonus;
-    }
-
     let mut mg_pst = 0;
     let mut eg_pst = 0;
     let mut phase_value = 0;
@@ -285,6 +276,15 @@ fn evaluate_with_weights(position: &mut LightPosition, weights: &Weights) -> i32
 
     score += bb_pawn_structure_with_weights(&position.bb_color, &position.bb_piece, weights);
     score += bb_rook_score_with_weights(&position.bb_color, &position.bb_piece, weights);
+
+    let white_bishops = (position.bb_color[0] & position.bb_piece[2]).count_ones();
+    let black_bishops = (position.bb_color[1] & position.bb_piece[2]).count_ones();
+    if white_bishops >= 2 {
+        score += weights.bishop_pair_bonus;
+    }
+    if black_bishops >= 2 {
+        score -= weights.bishop_pair_bonus;
+    }
 
     score * side
 }
