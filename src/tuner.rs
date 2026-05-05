@@ -5,7 +5,7 @@ use crate::{
         BISHOP, BLACK, EMPTY, KING, KNIGHT, PAWN, QUEEN, ROOK, WHITE, get_piece_color,
         get_piece_type, piece_from_char,
     },
-    position::{get_square_in_64, sq88_to_bb},
+    position::{get_phase_value, get_square_in_64, sq88_to_bb},
 };
 
 use pyo3::prelude::*;
@@ -150,12 +150,18 @@ struct Weights {
     material_queen: i32,
     material_king: i32,
     // Piece-square tables
-    pawn_pst: [i32; 64],
-    knight_pst: [i32; 64],
-    bishop_pst: [i32; 64],
-    rook_pst: [i32; 64],
-    queen_pst: [i32; 64],
-    king_pst: [i32; 64],
+    pawn_mg_pst: [i32; 64],
+    knight_mg_pst: [i32; 64],
+    bishop_mg_pst: [i32; 64],
+    rook_mg_pst: [i32; 64],
+    queen_mg_pst: [i32; 64],
+    king_mg_pst: [i32; 64],
+    pawn_eg_pst: [i32; 64],
+    knight_eg_pst: [i32; 64],
+    bishop_eg_pst: [i32; 64],
+    rook_eg_pst: [i32; 64],
+    queen_eg_pst: [i32; 64],
+    king_eg_pst: [i32; 64],
     // Positional bonuses/penalties
     doubled_pawn_penalty: i32,
     isolated_pawn_penalty: i32,
@@ -186,12 +192,18 @@ impl Weights {
             self.rook_on_seventh_bonus,
             self.bishop_pair_bonus,
         ];
-        v.extend_from_slice(&self.pawn_pst);
-        v.extend_from_slice(&self.knight_pst);
-        v.extend_from_slice(&self.bishop_pst);
-        v.extend_from_slice(&self.rook_pst);
-        v.extend_from_slice(&self.queen_pst);
-        v.extend_from_slice(&self.king_pst);
+        v.extend_from_slice(&self.pawn_mg_pst);
+        v.extend_from_slice(&self.knight_mg_pst);
+        v.extend_from_slice(&self.bishop_mg_pst);
+        v.extend_from_slice(&self.rook_mg_pst);
+        v.extend_from_slice(&self.queen_mg_pst);
+        v.extend_from_slice(&self.king_mg_pst);
+        v.extend_from_slice(&self.pawn_eg_pst);
+        v.extend_from_slice(&self.knight_eg_pst);
+        v.extend_from_slice(&self.bishop_eg_pst);
+        v.extend_from_slice(&self.rook_eg_pst);
+        v.extend_from_slice(&self.queen_eg_pst);
+        v.extend_from_slice(&self.king_eg_pst);
         v
     }
 
@@ -211,12 +223,18 @@ impl Weights {
             rook_open_file_bonus: v[11],
             rook_on_seventh_bonus: v[12],
             bishop_pair_bonus: v[13],
-            pawn_pst: v[14..78].try_into().unwrap(),
-            knight_pst: v[78..142].try_into().unwrap(),
-            bishop_pst: v[142..206].try_into().unwrap(),
-            rook_pst: v[206..270].try_into().unwrap(),
-            queen_pst: v[270..334].try_into().unwrap(),
-            king_pst: v[334..398].try_into().unwrap(),
+            pawn_mg_pst: v[14..78].try_into().unwrap(),
+            knight_mg_pst: v[78..142].try_into().unwrap(),
+            bishop_mg_pst: v[142..206].try_into().unwrap(),
+            rook_mg_pst: v[206..270].try_into().unwrap(),
+            queen_mg_pst: v[270..334].try_into().unwrap(),
+            king_mg_pst: v[334..398].try_into().unwrap(),
+            pawn_eg_pst: v[398..462].try_into().unwrap(),
+            knight_eg_pst: v[462..526].try_into().unwrap(),
+            bishop_eg_pst: v[526..590].try_into().unwrap(),
+            rook_eg_pst: v[590..654].try_into().unwrap(),
+            queen_eg_pst: v[654..718].try_into().unwrap(),
+            king_eg_pst: v[718..782].try_into().unwrap(),
         }
     }
 }
@@ -234,6 +252,10 @@ fn evaluate_with_weights(position: &mut LightPosition, weights: &Weights) -> i32
         score -= weights.bishop_pair_bonus;
     }
 
+    let mut mg_pst = 0;
+    let mut eg_pst = 0;
+    let mut phase_value = 0;
+
     for rank in 0..8 {
         for file in 0..8 {
             let square = rank * 16 + file;
@@ -243,12 +265,23 @@ fn evaluate_with_weights(position: &mut LightPosition, weights: &Weights) -> i32
                 continue;
             }
 
-            score += get_piece_table_score_with_weights(square, piece, piece_type, weights);
+            mg_pst += get_mg_piece_table_score_with_weights(square, piece, piece_type, weights);
+            eg_pst += get_eg_piece_table_score_with_weights(square, piece, piece_type, weights);
+
+            phase_value += get_phase_value(piece);
+
             score += get_piece_material_score_with_weights(piece, weights);
 
             position.bb_add_piece_to(piece, square);
         }
     }
+
+    let mg_phase = phase_value;
+    let eg_phase = 6400 - mg_phase;
+
+    let tapered_pst_score = (mg_pst * mg_phase + eg_pst * eg_phase) / 6400;
+
+    score += tapered_pst_score;
 
     score += bb_pawn_structure_with_weights(&position.bb_color, &position.bb_piece, weights);
     score += bb_rook_score_with_weights(&position.bb_color, &position.bb_piece, weights);
@@ -256,7 +289,7 @@ fn evaluate_with_weights(position: &mut LightPosition, weights: &Weights) -> i32
     score * side
 }
 
-fn get_piece_table_score_with_weights(
+fn get_mg_piece_table_score_with_weights(
     square: usize,
     piece: u8,
     piece_type: u8,
@@ -266,22 +299,53 @@ fn get_piece_table_score_with_weights(
 
     if get_piece_color(piece) == WHITE {
         match piece_type {
-            PAWN => weights.pawn_pst[square64],
-            KNIGHT => weights.knight_pst[square64],
-            BISHOP => weights.bishop_pst[square64],
-            ROOK => weights.rook_pst[square64],
-            QUEEN => weights.queen_pst[square64],
-            KING => weights.king_pst[square64],
+            PAWN => weights.pawn_mg_pst[square64],
+            KNIGHT => weights.knight_mg_pst[square64],
+            BISHOP => weights.bishop_mg_pst[square64],
+            ROOK => weights.rook_mg_pst[square64],
+            QUEEN => weights.queen_mg_pst[square64],
+            KING => weights.king_mg_pst[square64],
             _ => panic!("Unexpected piece {}", piece),
         }
     } else {
         match piece_type {
-            PAWN => -flip_board(&weights.pawn_pst)[square64],
-            KNIGHT => -flip_board(&weights.knight_pst)[square64],
-            BISHOP => -flip_board(&weights.bishop_pst)[square64],
-            ROOK => -flip_board(&weights.rook_pst)[square64],
-            QUEEN => -flip_board(&weights.queen_pst)[square64],
-            KING => -flip_board(&weights.king_pst)[square64],
+            PAWN => -flip_board(&weights.pawn_mg_pst)[square64],
+            KNIGHT => -flip_board(&weights.knight_mg_pst)[square64],
+            BISHOP => -flip_board(&weights.bishop_mg_pst)[square64],
+            ROOK => -flip_board(&weights.rook_mg_pst)[square64],
+            QUEEN => -flip_board(&weights.queen_mg_pst)[square64],
+            KING => -flip_board(&weights.king_mg_pst)[square64],
+            _ => panic!("Unexpected piece {}", piece),
+        }
+    }
+}
+
+fn get_eg_piece_table_score_with_weights(
+    square: usize,
+    piece: u8,
+    piece_type: u8,
+    weights: &Weights,
+) -> i32 {
+    let square64 = get_square_in_64(square);
+
+    if get_piece_color(piece) == WHITE {
+        match piece_type {
+            PAWN => weights.pawn_eg_pst[square64],
+            KNIGHT => weights.knight_eg_pst[square64],
+            BISHOP => weights.bishop_eg_pst[square64],
+            ROOK => weights.rook_eg_pst[square64],
+            QUEEN => weights.queen_eg_pst[square64],
+            KING => weights.king_eg_pst[square64],
+            _ => panic!("Unexpected piece {}", piece),
+        }
+    } else {
+        match piece_type {
+            PAWN => -flip_board(&weights.pawn_eg_pst)[square64],
+            KNIGHT => -flip_board(&weights.knight_eg_pst)[square64],
+            BISHOP => -flip_board(&weights.bishop_eg_pst)[square64],
+            ROOK => -flip_board(&weights.rook_eg_pst)[square64],
+            QUEEN => -flip_board(&weights.queen_eg_pst)[square64],
+            KING => -flip_board(&weights.king_eg_pst)[square64],
             _ => panic!("Unexpected piece {}", piece),
         }
     }
@@ -405,10 +469,11 @@ fn bb_rook_score_with_weights(bb_color: &[u64; 2], bb_piece: &[u64; 6], weights:
 mod tests {
     use crate::START_POSITION_FEN;
     use crate::evaluation::{
-        BACKWARDS_PAWN_PENALTY, BISHOP_PAIR_BONUS, BISHOP_PST, DOUBLED_PAWN_PENALTY,
-        ISOLATED_PAWN_PENALTY, KING_PST, KNIGHT_PST, MATERIAL_BISHOP, MATERIAL_KING,
-        MATERIAL_KNIGHT, MATERIAL_PAWN, MATERIAL_QUEEN, MATERIAL_ROOK, PASSED_PAWN_BONUS, PAWN_PST,
-        QUEEN_PST, ROOK_ON_SEVENTH_BONUS, ROOK_OPEN_FILE_BONUS, ROOK_PST,
+        BACKWARDS_PAWN_PENALTY, BISHOP_EG_PST, BISHOP_MG_PST, BISHOP_PAIR_BONUS,
+        DOUBLED_PAWN_PENALTY, ISOLATED_PAWN_PENALTY, KING_EG_PST, KING_MG_PST, KNIGHT_EG_PST,
+        KNIGHT_MG_PST, MATERIAL_BISHOP, MATERIAL_KING, MATERIAL_KNIGHT, MATERIAL_PAWN,
+        MATERIAL_QUEEN, MATERIAL_ROOK, PASSED_PAWN_BONUS, PAWN_EG_PST, PAWN_MG_PST, QUEEN_MG_PST,
+        ROOK_EG_PST, ROOK_MG_PST, ROOK_ON_SEVENTH_BONUS, ROOK_OPEN_FILE_BONUS,
         ROOK_SEMI_OPEN_FILE_BONUS, evaluate,
     };
     use crate::position::Position;
@@ -422,12 +487,18 @@ mod tests {
         material_rook: MATERIAL_ROOK,
         material_queen: MATERIAL_QUEEN,
         material_king: MATERIAL_KING,
-        pawn_pst: PAWN_PST,
-        knight_pst: KNIGHT_PST,
-        bishop_pst: BISHOP_PST,
-        rook_pst: ROOK_PST,
-        queen_pst: QUEEN_PST,
-        king_pst: KING_PST,
+        pawn_mg_pst: PAWN_MG_PST,
+        knight_mg_pst: KNIGHT_MG_PST,
+        bishop_mg_pst: BISHOP_MG_PST,
+        rook_mg_pst: ROOK_MG_PST,
+        queen_mg_pst: PAWN_MG_PST,
+        king_mg_pst: KING_MG_PST,
+        pawn_eg_pst: PAWN_EG_PST,
+        knight_eg_pst: KNIGHT_EG_PST,
+        bishop_eg_pst: BISHOP_EG_PST,
+        rook_eg_pst: ROOK_EG_PST,
+        queen_eg_pst: QUEEN_MG_PST,
+        king_eg_pst: KING_EG_PST,
         doubled_pawn_penalty: DOUBLED_PAWN_PENALTY,
         isolated_pawn_penalty: ISOLATED_PAWN_PENALTY,
         backwards_pawn_penalty: BACKWARDS_PAWN_PENALTY,
@@ -466,7 +537,7 @@ mod tests {
     #[test]
     fn test_to_vec_length() {
         let w = DEFAULT_WEIGHTS;
-        assert_eq!(w.to_vec().len(), 398); // 14 scalars + 6*64 PST values
+        assert_eq!(w.to_vec().len(), 782); // 14 scalars + 12*64 PST values
     }
 
     #[test]
@@ -490,9 +561,10 @@ mod tests {
     fn test_psts_are_at_correct_positions() {
         let w = DEFAULT_WEIGHTS;
         let v = w.to_vec();
-        assert_eq!(v[14..78], w.pawn_pst);
-        assert_eq!(v[78..142], w.knight_pst);
-        assert_eq!(v[334..398], w.king_pst);
+        assert_eq!(v[14..78], w.pawn_mg_pst);
+        assert_eq!(v[78..142], w.knight_mg_pst);
+        assert_eq!(v[334..398], w.king_mg_pst);
+        assert_eq!(v[718..782], w.king_eg_pst);
     }
 
     #[test]
