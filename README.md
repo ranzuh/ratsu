@@ -10,6 +10,7 @@
 * Iterative deepening negamax search
 * Quiescence search
 * Evaluation using incrementally updated material and piece-square tables; and bitboards for pawn/rook structures and bishop pair
+* Tapered evaluation
 * Tuned evaluation weights
 * Transposition table with Zobrist hashing
 * Move ordering using TT move, MVV-LVA, Killer moves, and History heuristic
