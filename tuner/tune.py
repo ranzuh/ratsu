@@ -21,18 +21,18 @@ def load_positions(filename):
             line = line.strip()
             if not line:
                 continue
-            # fen, result = line.rsplit('[', 1)
-            # result = float(result.rstrip(']'))
-            fen, epd_result = line.split(' "', 1)
-            epd_result = epd_result.rstrip('";')
-            if epd_result == "1-0":
-                result = 1.0
-            elif epd_result == "0-1":
-                result = 0.0
-            elif epd_result == "1/2-1/2":
-                result = 0.5
-            else:
-                raise ValueError(f"Invalid result: {epd_result}")
+            fen, result = line.rsplit('[', 1)
+            result = float(result.rstrip(']'))
+            # fen, epd_result = line.split(' "', 1)
+            # epd_result = epd_result.rstrip('";')
+            # if epd_result == "1-0":
+            #     result = 1.0
+            # elif epd_result == "0-1":
+            #     result = 0.0
+            # elif epd_result == "1/2-1/2":
+            #     result = 0.5
+            # else:
+            #     raise ValueError(f"Invalid result: {epd_result}")
             positions.append((fen.strip(), result))
     return positions
 
@@ -58,7 +58,7 @@ def tune_with_annealing(dataset, initial_weights, K):
     best_error = ratsu.compute_mse(dataset, best_weights, K)
     print(f"Starting MSE: {best_error}")
 
-    step_sizes = [1]  # coarse to fine
+    step_sizes = [100, 30, 10, 5, 1]  # coarse to fine
 
     for step in step_sizes:
         print(f"\n--- Step size: {step} ---")
@@ -67,7 +67,7 @@ def tune_with_annealing(dataset, initial_weights, K):
             improved = False
             # TODO: shuffle parameter order to avoid bias
             for i in range(len(best_weights)):
-                if i not in BISHOP_INDICES:
+                if i in MATERIAL_INDICES or i in BONUS_INDICES:
                     continue  # skip material weights for now
                 # if i not in BONUS_INDICES:
                 #     continue  # only tune piece-square weights for now
@@ -106,12 +106,12 @@ def tune_with_annealing(dataset, initial_weights, K):
 
 
 if __name__ == "__main__":
-    positions = load_positions("tuner/quiet-labeled.v7.epd")
+    positions = load_positions("tuner/lichess-big3-resolved.book")
     print(f"Loaded {len(positions)} positions")
 
     dataset = ratsu.EvaluationDataset(positions)
 
-    init_weights = load_weights("tuner/weights_step1_mse0.064587_best_all.json")
+    init_weights = load_weights("tuner/weights_material_only.json")
     print(f"loaded {len(init_weights)} weights")
 
     # debug stuff
