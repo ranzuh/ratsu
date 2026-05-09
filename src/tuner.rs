@@ -16,8 +16,8 @@ struct LightPosition {
     is_white_turn: bool,
     bb_color: [u64; 2],
     bb_piece: [u64; 6],
-    material_score: i32,
-    pst_score: i32,
+    pieces: Vec<(usize, u8, u8)>, // (square, piece, piece_type)
+    phase_value: i32,
 }
 
 impl LightPosition {
@@ -27,26 +27,25 @@ impl LightPosition {
             is_white_turn: false,
             bb_color: [0u64; 2],
             bb_piece: [0u64; 6],
-            material_score: 0,
-            pst_score: 0,
+            pieces: Vec::with_capacity(32),
+            phase_value: 0,
         };
         let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
-
-        let piece_placement = fen_parts[0];
-        let side_to_move = fen_parts[1];
-
-        pos.is_white_turn = side_to_move == "w";
+        pos.is_white_turn = fen_parts[1] == "w";
 
         let mut i: usize = 0;
-        for c in piece_placement.chars() {
+        for c in fen_parts[0].chars() {
             if c.is_numeric() {
-                let n_empty_squares = c.to_digit(10).unwrap() as usize;
-                i += n_empty_squares;
+                i += c.to_digit(10).unwrap() as usize;
             } else if c == '/' {
                 i += 8;
             } else {
                 let piece = piece_from_char(c);
+                let piece_type = get_piece_type(piece);
                 pos.board[i] = piece;
+                pos.bb_add_piece_to(piece, i);
+                pos.pieces.push((i, piece, piece_type));
+                pos.phase_value += get_phase_value(piece);
                 i += 1;
             }
         }
@@ -103,17 +102,11 @@ fn compute_mse(dataset: &mut EvaluationDataset, weights: Vec<i32>, k: f32) -> Py
     // to ensure compute_mse is deterministic.
     let total_error_int: i128 = dataset
         .positions
-        .par_iter_mut()
+        .par_iter()
         .zip(&dataset.results)
         .map(|(pos, result)| {
-            // zero mutable fields to eval score dont accumulate incorrectly
-            pos.bb_color = [0u64; 2];
-            pos.bb_piece = [0u64; 6];
-            pos.material_score = 0;
-            pos.pst_score = 0;
-
             let score_side_to_move = evaluate_with_weights(pos, &w) as f32;
-            // Convert to white's perspective
+
             let score = if pos.is_white_turn {
                 score_side_to_move
             } else {
@@ -162,6 +155,19 @@ struct Weights {
     rook_eg_pst: [i32; 64],
     queen_eg_pst: [i32; 64],
     king_eg_pst: [i32; 64],
+    // Precomputed flipped PSTs for black
+    pawn_mg_flip: [i32; 64],
+    knight_mg_flip: [i32; 64],
+    bishop_mg_flip: [i32; 64],
+    rook_mg_flip: [i32; 64],
+    queen_mg_flip: [i32; 64],
+    king_mg_flip: [i32; 64],
+    pawn_eg_flip: [i32; 64],
+    knight_eg_flip: [i32; 64],
+    bishop_eg_flip: [i32; 64],
+    rook_eg_flip: [i32; 64],
+    queen_eg_flip: [i32; 64],
+    king_eg_flip: [i32; 64],
     // Positional bonuses/penalties
     doubled_pawn_penalty: i32,
     isolated_pawn_penalty: i32,
@@ -208,6 +214,18 @@ impl Weights {
     }
 
     fn from_vec(v: &[i32]) -> Self {
+        let pawn_mg_pst: [i32; 64] = v[14..78].try_into().unwrap();
+        let knight_mg_pst: [i32; 64] = v[78..142].try_into().unwrap();
+        let bishop_mg_pst: [i32; 64] = v[142..206].try_into().unwrap();
+        let rook_mg_pst: [i32; 64] = v[206..270].try_into().unwrap();
+        let queen_mg_pst: [i32; 64] = v[270..334].try_into().unwrap();
+        let king_mg_pst: [i32; 64] = v[334..398].try_into().unwrap();
+        let pawn_eg_pst: [i32; 64] = v[398..462].try_into().unwrap();
+        let knight_eg_pst: [i32; 64] = v[462..526].try_into().unwrap();
+        let bishop_eg_pst: [i32; 64] = v[526..590].try_into().unwrap();
+        let rook_eg_pst: [i32; 64] = v[590..654].try_into().unwrap();
+        let queen_eg_pst: [i32; 64] = v[654..718].try_into().unwrap();
+        let king_eg_pst: [i32; 64] = v[718..782].try_into().unwrap();
         Self {
             material_pawn: v[0],
             material_knight: v[1],
@@ -223,57 +241,49 @@ impl Weights {
             rook_open_file_bonus: v[11],
             rook_on_seventh_bonus: v[12],
             bishop_pair_bonus: v[13],
-            pawn_mg_pst: v[14..78].try_into().unwrap(),
-            knight_mg_pst: v[78..142].try_into().unwrap(),
-            bishop_mg_pst: v[142..206].try_into().unwrap(),
-            rook_mg_pst: v[206..270].try_into().unwrap(),
-            queen_mg_pst: v[270..334].try_into().unwrap(),
-            king_mg_pst: v[334..398].try_into().unwrap(),
-            pawn_eg_pst: v[398..462].try_into().unwrap(),
-            knight_eg_pst: v[462..526].try_into().unwrap(),
-            bishop_eg_pst: v[526..590].try_into().unwrap(),
-            rook_eg_pst: v[590..654].try_into().unwrap(),
-            queen_eg_pst: v[654..718].try_into().unwrap(),
-            king_eg_pst: v[718..782].try_into().unwrap(),
+            pawn_mg_flip: flip_board(&pawn_mg_pst),
+            knight_mg_flip: flip_board(&knight_mg_pst),
+            bishop_mg_flip: flip_board(&bishop_mg_pst),
+            rook_mg_flip: flip_board(&rook_mg_pst),
+            queen_mg_flip: flip_board(&queen_mg_pst),
+            king_mg_flip: flip_board(&king_mg_pst),
+            pawn_eg_flip: flip_board(&pawn_eg_pst),
+            knight_eg_flip: flip_board(&knight_eg_pst),
+            bishop_eg_flip: flip_board(&bishop_eg_pst),
+            rook_eg_flip: flip_board(&rook_eg_pst),
+            queen_eg_flip: flip_board(&queen_eg_pst),
+            king_eg_flip: flip_board(&king_eg_pst),
+            pawn_mg_pst,
+            knight_mg_pst,
+            bishop_mg_pst,
+            rook_mg_pst,
+            queen_mg_pst,
+            king_mg_pst,
+            pawn_eg_pst,
+            knight_eg_pst,
+            bishop_eg_pst,
+            rook_eg_pst,
+            queen_eg_pst,
+            king_eg_pst,
         }
     }
 }
 
-fn evaluate_with_weights(position: &mut LightPosition, weights: &Weights) -> i32 {
+fn evaluate_with_weights(position: &LightPosition, weights: &Weights) -> i32 {
     let mut score = 0;
     let side = if position.is_white_turn { 1 } else { -1 };
-
     let mut mg_pst = 0;
     let mut eg_pst = 0;
-    let mut phase_value = 0;
 
-    for rank in 0..8 {
-        for file in 0..8 {
-            let square = rank * 16 + file;
-            let piece = position.board[square];
-            let piece_type = get_piece_type(piece);
-            if piece_type == EMPTY {
-                continue;
-            }
-
-            mg_pst += get_mg_piece_table_score_with_weights(square, piece, piece_type, weights);
-            eg_pst += get_eg_piece_table_score_with_weights(square, piece, piece_type, weights);
-
-            phase_value += get_phase_value(piece);
-
-            score += get_piece_material_score_with_weights(piece, weights);
-
-            position.bb_add_piece_to(piece, square);
-        }
+    for &(square, piece, piece_type) in &position.pieces {
+        mg_pst += get_mg_piece_table_score_with_weights(square, piece, piece_type, weights);
+        eg_pst += get_eg_piece_table_score_with_weights(square, piece, piece_type, weights);
+        score += get_piece_material_score_with_weights(piece, weights);
     }
 
-    let mg_phase = phase_value;
+    let mg_phase = position.phase_value;
     let eg_phase = 6400 - mg_phase;
-
-    let tapered_pst_score = (mg_pst * mg_phase + eg_pst * eg_phase) / 6400;
-
-    score += tapered_pst_score;
-
+    score += (mg_pst * mg_phase + eg_pst * eg_phase) / 6400;
     score += bb_pawn_structure_with_weights(&position.bb_color, &position.bb_piece, weights);
     score += bb_rook_score_with_weights(&position.bb_color, &position.bb_piece, weights);
 
@@ -295,26 +305,25 @@ fn get_mg_piece_table_score_with_weights(
     piece_type: u8,
     weights: &Weights,
 ) -> i32 {
-    let square64 = get_square_in_64(square);
-
+    let sq = get_square_in_64(square);
     if get_piece_color(piece) == WHITE {
         match piece_type {
-            PAWN => weights.pawn_mg_pst[square64],
-            KNIGHT => weights.knight_mg_pst[square64],
-            BISHOP => weights.bishop_mg_pst[square64],
-            ROOK => weights.rook_mg_pst[square64],
-            QUEEN => weights.queen_mg_pst[square64],
-            KING => weights.king_mg_pst[square64],
+            PAWN => weights.pawn_mg_pst[sq],
+            KNIGHT => weights.knight_mg_pst[sq],
+            BISHOP => weights.bishop_mg_pst[sq],
+            ROOK => weights.rook_mg_pst[sq],
+            QUEEN => weights.queen_mg_pst[sq],
+            KING => weights.king_mg_pst[sq],
             _ => panic!("Unexpected piece {}", piece),
         }
     } else {
-        match piece_type {
-            PAWN => -flip_board(&weights.pawn_mg_pst)[square64],
-            KNIGHT => -flip_board(&weights.knight_mg_pst)[square64],
-            BISHOP => -flip_board(&weights.bishop_mg_pst)[square64],
-            ROOK => -flip_board(&weights.rook_mg_pst)[square64],
-            QUEEN => -flip_board(&weights.queen_mg_pst)[square64],
-            KING => -flip_board(&weights.king_mg_pst)[square64],
+        -match piece_type {
+            PAWN => weights.pawn_mg_flip[sq],
+            KNIGHT => weights.knight_mg_flip[sq],
+            BISHOP => weights.bishop_mg_flip[sq],
+            ROOK => weights.rook_mg_flip[sq],
+            QUEEN => weights.queen_mg_flip[sq],
+            KING => weights.king_mg_flip[sq],
             _ => panic!("Unexpected piece {}", piece),
         }
     }
@@ -326,26 +335,25 @@ fn get_eg_piece_table_score_with_weights(
     piece_type: u8,
     weights: &Weights,
 ) -> i32 {
-    let square64 = get_square_in_64(square);
-
+    let sq = get_square_in_64(square);
     if get_piece_color(piece) == WHITE {
         match piece_type {
-            PAWN => weights.pawn_eg_pst[square64],
-            KNIGHT => weights.knight_eg_pst[square64],
-            BISHOP => weights.bishop_eg_pst[square64],
-            ROOK => weights.rook_eg_pst[square64],
-            QUEEN => weights.queen_eg_pst[square64],
-            KING => weights.king_eg_pst[square64],
+            PAWN => weights.pawn_eg_pst[sq],
+            KNIGHT => weights.knight_eg_pst[sq],
+            BISHOP => weights.bishop_eg_pst[sq],
+            ROOK => weights.rook_eg_pst[sq],
+            QUEEN => weights.queen_eg_pst[sq],
+            KING => weights.king_eg_pst[sq],
             _ => panic!("Unexpected piece {}", piece),
         }
     } else {
-        match piece_type {
-            PAWN => -flip_board(&weights.pawn_eg_pst)[square64],
-            KNIGHT => -flip_board(&weights.knight_eg_pst)[square64],
-            BISHOP => -flip_board(&weights.bishop_eg_pst)[square64],
-            ROOK => -flip_board(&weights.rook_eg_pst)[square64],
-            QUEEN => -flip_board(&weights.queen_eg_pst)[square64],
-            KING => -flip_board(&weights.king_eg_pst)[square64],
+        -match piece_type {
+            PAWN => weights.pawn_eg_flip[sq],
+            KNIGHT => weights.knight_eg_flip[sq],
+            BISHOP => weights.bishop_eg_flip[sq],
+            ROOK => weights.rook_eg_flip[sq],
+            QUEEN => weights.queen_eg_flip[sq],
+            KING => weights.king_eg_flip[sq],
             _ => panic!("Unexpected piece {}", piece),
         }
     }
