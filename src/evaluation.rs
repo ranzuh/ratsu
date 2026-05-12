@@ -365,31 +365,31 @@ pub fn bb_rook_score(bb_color: &[u64; 2], bb_piece: &[u64; 6]) -> i32 {
     score
 }
 
-pub fn evaluate(position: &Position) -> i32 {
-    let mut score = 0;
-    let side = if position.is_white_turn { 1 } else { -1 };
+// pub fn evaluate(position: &Position) -> i32 {
+//     let mut score = 0;
+//     let side = if position.is_white_turn { 1 } else { -1 };
 
-    let white_bishops = (position.bb_color[0] & position.bb_piece[2]).count_ones();
-    let black_bishops = (position.bb_color[1] & position.bb_piece[2]).count_ones();
-    if white_bishops >= 2 {
-        score += BISHOP_PAIR_BONUS;
-    }
-    if black_bishops >= 2 {
-        score -= BISHOP_PAIR_BONUS;
-    }
+//     let white_bishops = (position.bb_color[0] & position.bb_piece[2]).count_ones();
+//     let black_bishops = (position.bb_color[1] & position.bb_piece[2]).count_ones();
+//     if white_bishops >= 2 {
+//         score += BISHOP_PAIR_BONUS;
+//     }
+//     if black_bishops >= 2 {
+//         score -= BISHOP_PAIR_BONUS;
+//     }
 
-    let mg_phase = position.phase_value.clamp(0, 6400);
-    let eg_phase = 6400 - mg_phase;
+//     let mg_phase = position.phase_value.clamp(0, 6400);
+//     let eg_phase = 6400 - mg_phase;
 
-    let tapered_pst_score =
-        (position.mg_pst_score * mg_phase + position.eg_pst_score * eg_phase) / 6400;
+//     let tapered_pst_score =
+//         (position.mg_pst_score * mg_phase + position.eg_pst_score * eg_phase) / 6400;
 
-    score += position.material_score + tapered_pst_score;
-    score += bb_pawn_structure(&position.bb_color, &position.bb_piece);
-    score += bb_rook_score(&position.bb_color, &position.bb_piece);
+//     score += position.material_score + tapered_pst_score;
+//     score += bb_pawn_structure(&position.bb_color, &position.bb_piece);
+//     score += bb_rook_score(&position.bb_color, &position.bb_piece);
 
-    score * side
-}
+//     score * side
+// }
 
 #[cfg(test)]
 mod tests {

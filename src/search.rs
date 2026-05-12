@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    evaluation::evaluate,
+    // evaluation::evaluate,
     hash::{NodeType, TranspositionTable},
     movegen::{Move, get_move_string, is_square_attacked},
     moveordering::{self},

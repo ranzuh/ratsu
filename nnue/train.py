@@ -56,18 +56,17 @@ def precompute_sparse(data_path, out_path="nnue_data.npz", max_pieces=32):
 
 
 class NNUE(nn.Module):
-    def __init__(self, n_in=768, n_h1=512, n_h2=32):
+    def __init__(self, n_in=768, n_h1=256):
         super().__init__()
-        self.l1, self.l2, self.l3 = (
+        self.l1, self.l2 = (
             nn.Linear(n_in, n_h1),
-            nn.Linear(n_h1, n_h2),
-            nn.Linear(n_h2, 1),
+            nn.Linear(n_h1, 1),
+            # nn.Linear(n_h2, 1),
         )
 
     def forward(self, x):
         x = torch.clamp(self.l1(x), 0, 1)
-        x = torch.clamp(self.l2(x), 0, 1)
-        return torch.sigmoid(self.l3(x))
+        return torch.sigmoid(self.l2(x))
 
 
 class NNUEData(Dataset):
@@ -326,7 +325,7 @@ def train_nnue(indices, results, epochs=100, lr=1e-3, bs=16384):
 def export_weights(model, path="nnue.bin"):
     "Export NNUE weights to flat binary file for Rust inference"
     with open(path, "wb") as f:
-        for name in ["l1", "l2", "l3"]:
+        for name in ["l1", "l2"]:
             layer = getattr(model, name)
             f.write(layer.weight.data.numpy().tobytes())
             f.write(layer.bias.data.numpy().tobytes())
@@ -351,7 +350,7 @@ if __name__ == "__main__":
     model = train_nnue(
         indices,
         results,
-        epochs=100,
+        epochs=1,
         lr=5e-4
         # load_model_path="epoch_5_loss_0.069362nnue.pt",
     )
@@ -359,7 +358,7 @@ if __name__ == "__main__":
 
     model = NNUE()
     model.load_state_dict(torch.load("nnue_best.pt"))
-    export_weights(model)
+    export_weights(model, "nnue-new.bin")
 
     # def eval_fen(model, fen):
     #     feats = fen_to_features(fen)

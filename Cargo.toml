@@ -16,3 +16,7 @@ rayon = { version = "1", optional = true }
 [features]
 default = []
 python = ["dep:pyo3", "dep:rayon"]
+
+[profile.release]
+debug = true
+force-frame-pointers = true

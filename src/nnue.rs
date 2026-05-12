@@ -5,18 +5,14 @@ use crate::{
 };
 
 const INPUT_SIZE: usize = 768;
-pub const H1_SIZE: usize = 512;
-const H2_SIZE: usize = 32;
-
+pub const H1_SIZE: usize = 256;
 const QA: i32 = 256;
 
 pub struct Nnue {
-    pub w1: [[i16; INPUT_SIZE]; H1_SIZE], // 512 x 768
-    pub b1: [i16; H1_SIZE],               // 512
-    pub w2: [[i16; H1_SIZE]; H2_SIZE],    // 32 x 512
-    pub b2: [i32; H2_SIZE],               // 32 (scaled by QA²)
-    pub w3: [f32; H2_SIZE],               // 32
-    pub b3: f32,                          // 1
+    pub w1: [[i16; INPUT_SIZE]; H1_SIZE],  // 256 x 768
+    pub b1: [i16; H1_SIZE],                // 256
+    pub w2: [f32; H1_SIZE],                // 256
+    pub b2: f32,                            // 1
 }
 
 impl Nnue {
@@ -24,49 +20,32 @@ impl Nnue {
         let mut offset = 0;
 
         let mut w1 = [[0i16; INPUT_SIZE]; H1_SIZE];
-        for r in 0..H1_SIZE {
-            for c in 0..INPUT_SIZE {
-                w1[r][c] = i16::from_le_bytes(data[offset..offset + 2].try_into().unwrap());
+        for i in 0..H1_SIZE {
+            for j in 0..INPUT_SIZE {
+                w1[i][j] = i16::from_le_bytes([data[offset], data[offset + 1]]);
                 offset += 2;
             }
         }
 
         let mut b1 = [0i16; H1_SIZE];
-        for r in 0..H1_SIZE {
-            b1[r] = i16::from_le_bytes(data[offset..offset + 2].try_into().unwrap());
+        for i in 0..H1_SIZE {
+            b1[i] = i16::from_le_bytes([data[offset], data[offset + 1]]);
             offset += 2;
         }
 
-        let mut w2 = [[0i16; H1_SIZE]; H2_SIZE];
-        for r in 0..H2_SIZE {
-            for c in 0..H1_SIZE {
-                w2[r][c] = i16::from_le_bytes(data[offset..offset + 2].try_into().unwrap());
-                offset += 2;
-            }
-        }
-
-        let mut b2 = [0i32; H2_SIZE];
-        for r in 0..H2_SIZE {
-            b2[r] = i32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
+        let mut w2 = [0f32; H1_SIZE];
+        for i in 0..H1_SIZE {
+            w2[i] = f32::from_le_bytes([
+                data[offset], data[offset + 1], data[offset + 2], data[offset + 3],
+            ]);
             offset += 4;
         }
 
-        let mut w3 = [0f32; H2_SIZE];
-        for r in 0..H2_SIZE {
-            w3[r] = f32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
-            offset += 4;
-        }
+        let b2 = f32::from_le_bytes([
+            data[offset], data[offset + 1], data[offset + 2], data[offset + 3],
+        ]);
 
-        let b3 = f32::from_le_bytes(data[offset..offset + 4].try_into().unwrap());
-
-        Nnue {
-            w1,
-            b1,
-            w2,
-            b2,
-            w3,
-            b3,
-        }
+        Nnue { w1, b1, w2, b2 }
     }
 
     // pub fn forward(&self, features: &[usize]) -> f32 {
@@ -98,30 +77,10 @@ impl Nnue {
     // }
 
     pub fn forward_from_accumulator(&self, accumulator: &[i16; H1_SIZE]) -> f32 {
-        // Clipped ReLU: clamp to [0, QA] in i16
-        let mut h1 = [0i16; H1_SIZE];
+        let mut out = self.b2;
         for j in 0..H1_SIZE {
-            h1[j] = accumulator[j].clamp(0, QA as i16);
-        }
-
-        // L2: i16 × i16 → i32
-        let mut h2 = self.b2; // already scaled by QA²
-        for j in 0..H2_SIZE {
-            for k in 0..H1_SIZE {
-                h2[j] += self.w2[j][k] as i32 * h1[k] as i32;
-            }
-        }
-
-        // Clipped ReLU on h2: values are at scale QA², clamp to [0, QA²]
-        let qa_sq = (QA * QA) as i32;
-        for j in 0..H2_SIZE {
-            h2[j] = h2[j].clamp(0, qa_sq);
-        }
-
-        // L3: convert to float, divide by QA² to get back to real scale
-        let mut out = self.b3;
-        for j in 0..H2_SIZE {
-            out += self.w3[j] * (h2[j] as f32 / qa_sq as f32);
+            let clamped = accumulator[j].clamp(0, QA as i16);
+            out += self.w2[j] * (clamped as f32 / QA as f32);
         }
         out
     }

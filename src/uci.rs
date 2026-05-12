@@ -154,7 +154,7 @@ fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable, 
 // isready
 
 pub fn uci_loop() {
-    const NNUE_BYTES: &[u8] = include_bytes!("../nnue_q.bin");
+    const NNUE_BYTES: &[u8] = include_bytes!("../nnue/nnue_q.bin");
     let nnue = Nnue::load(NNUE_BYTES);
     
     let mut position = Position::from_fen(START_POSITION_FEN, &nnue);

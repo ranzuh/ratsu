@@ -40,13 +40,13 @@ pub struct Position {
     pub repetition_stack: [u64; 1024],
     pub repetition_index: usize,
     pub fifty: u8,
-    pub bb_color: [u64; 2],
-    pub bb_piece: [u64; 6],
-    pub material_score: i32,
-    pub mg_pst_score: i32,
-    pub eg_pst_score: i32,
-    pub phase_value: i32,
-    pub accumulator: [i16; 512],
+    // pub bb_color: [u64; 2],
+    // pub bb_piece: [u64; 6],
+    // pub material_score: i32,
+    // pub mg_pst_score: i32,
+    // pub eg_pst_score: i32,
+    // pub phase_value: i32,
+    pub accumulator: [i16; H1_SIZE],
 
     prev_target_piece: [u8; 64],
     prev_castling_rights: [[bool; 4]; 64],
@@ -54,11 +54,11 @@ pub struct Position {
     prev_ep_square: [Option<usize>; 64],
     prev_hash: [u64; 64],
     prev_fifty: [u8; 64],
-    prev_material_score: [i32; 64],
-    prev_mg_pst_score: [i32; 64],
-    prev_eg_pst_score: [i32; 64],
-    prev_phase_value: [i32; 64],
-    prev_accumulator: [[i16; 512]; 64],
+    // prev_material_score: [i32; 64],
+    // prev_mg_pst_score: [i32; 64],
+    // prev_eg_pst_score: [i32; 64],
+    // prev_phase_value: [i32; 64],
+    prev_accumulator: [[i16; H1_SIZE]; 64],
 }
 
 impl Position {
@@ -110,12 +110,12 @@ impl Position {
             repetition_stack: [0u64; 1024],
             repetition_index: 0,
             fifty: 0,
-            bb_color: [0u64; 2],
-            bb_piece: [0u64; 6],
-            material_score: 0,
-            mg_pst_score: 0,
-            eg_pst_score: 0,
-            phase_value: 0,
+            // bb_color: [0u64; 2],
+            // bb_piece: [0u64; 6],
+            // material_score: 0,
+            // mg_pst_score: 0,
+            // eg_pst_score: 0,
+            // phase_value: 0,
             accumulator: [0i16; H1_SIZE],
 
             prev_target_piece: [0u8; 64],
@@ -124,10 +124,10 @@ impl Position {
             prev_ep_square: [None; 64],
             prev_hash: [0u64; 64],
             prev_fifty: [0u8; 64],
-            prev_material_score: [0i32; 64],
-            prev_mg_pst_score: [0i32; 64],
-            prev_eg_pst_score: [0i32; 64],
-            prev_phase_value: [0i32; 64],
+            // prev_material_score: [0i32; 64],
+            // prev_mg_pst_score: [0i32; 64],
+            // prev_eg_pst_score: [0i32; 64],
+            // prev_phase_value: [0i32; 64],
             prev_accumulator: [[0i16; H1_SIZE]; 64],
         };
 
@@ -165,12 +165,12 @@ impl Position {
                 let piece = piece_from_char(c);
                 pos.board[i] = piece;
 
-                pos.bb_add_piece_to(piece, i);
+                // pos.bb_add_piece_to(piece, i);
                 pos.acc_add_feature(piece, i, nnue);
-                pos.material_score += get_piece_material_score(piece);
-                pos.mg_pst_score += get_mg_piece_table_score(i, piece, get_piece_type(piece));
-                pos.eg_pst_score += get_eg_piece_table_score(i, piece, get_piece_type(piece));
-                pos.phase_value += get_phase_value(piece);
+                // pos.material_score += get_piece_material_score(piece);
+                // pos.mg_pst_score += get_mg_piece_table_score(i, piece, get_piece_type(piece));
+                // pos.eg_pst_score += get_eg_piece_table_score(i, piece, get_piece_type(piece));
+                // pos.phase_value += get_phase_value(piece);
 
                 i += 1;
             }
@@ -254,56 +254,63 @@ impl Position {
             118 => {
                 self.board[119] = EMPTY;
                 self.board[117] = WHITE | ROOK;
-                self.bb_remove_piece_from(WHITE | ROOK, 119);
-                self.bb_add_piece_to(WHITE | ROOK, 117);
-                self.acc_sub_feature(WHITE | ROOK, 119, nnue);
-                self.acc_add_feature(WHITE | ROOK, 117, nnue);
-                self.mg_pst_score -= get_mg_piece_table_score(119, WHITE | ROOK, ROOK);
-                self.mg_pst_score += get_mg_piece_table_score(117, WHITE | ROOK, ROOK);
-                self.eg_pst_score -= get_eg_piece_table_score(119, WHITE | ROOK, ROOK);
-                self.eg_pst_score += get_eg_piece_table_score(117, WHITE | ROOK, ROOK);
+                // self.bb_remove_piece_from(WHITE | ROOK, 119);
+                // self.bb_add_piece_to(WHITE | ROOK, 117);
+                // self.acc_sub_feature(WHITE | ROOK, 119, nnue);
+                // self.acc_add_feature(WHITE | ROOK, 117, nnue);
+                self.acc_add_sub_feature(WHITE | ROOK, 117, WHITE | ROOK, 119, nnue);
+                // self.mg_pst_score -= get_mg_piece_table_score(119, WHITE | ROOK, ROOK);
+                // self.mg_pst_score += get_mg_piece_table_score(117, WHITE | ROOK, ROOK);
+                // self.eg_pst_score -= get_eg_piece_table_score(119, WHITE | ROOK, ROOK);
+                // self.eg_pst_score += get_eg_piece_table_score(117, WHITE | ROOK, ROOK);
                 self.hash ^= self.piece_hash(119, WHITE | ROOK);
                 self.hash ^= self.piece_hash(117, WHITE | ROOK);
             }
             114 => {
                 self.board[112] = EMPTY;
                 self.board[115] = WHITE | ROOK;
-                self.bb_remove_piece_from(WHITE | ROOK, 112);
-                self.bb_add_piece_to(WHITE | ROOK, 115);
-                self.acc_sub_feature(WHITE | ROOK, 112, nnue);
-                self.acc_add_feature(WHITE | ROOK, 115, nnue);
-                self.mg_pst_score -= get_mg_piece_table_score(112, WHITE | ROOK, ROOK);
-                self.mg_pst_score += get_mg_piece_table_score(115, WHITE | ROOK, ROOK);
-                self.eg_pst_score -= get_eg_piece_table_score(112, WHITE | ROOK, ROOK);
-                self.eg_pst_score += get_eg_piece_table_score(115, WHITE | ROOK, ROOK);
+                // self.bb_remove_piece_from(WHITE | ROOK, 112);
+                // self.bb_add_piece_to(WHITE | ROOK, 115);
+                // self.acc_sub_feature(WHITE | ROOK, 112, nnue);
+                // self.acc_add_feature(WHITE | ROOK, 115, nnue);
+                self.acc_add_sub_feature(WHITE | ROOK, 115, WHITE | ROOK, 112, nnue);
+
+                // self.mg_pst_score -= get_mg_piece_table_score(112, WHITE | ROOK, ROOK);
+                // self.mg_pst_score += get_mg_piece_table_score(115, WHITE | ROOK, ROOK);
+                // self.eg_pst_score -= get_eg_piece_table_score(112, WHITE | ROOK, ROOK);
+                // self.eg_pst_score += get_eg_piece_table_score(115, WHITE | ROOK, ROOK);
                 self.hash ^= self.piece_hash(112, WHITE | ROOK);
                 self.hash ^= self.piece_hash(115, WHITE | ROOK);
             }
             6 => {
                 self.board[7] = EMPTY;
                 self.board[5] = BLACK | ROOK;
-                self.bb_remove_piece_from(BLACK | ROOK, 7);
-                self.bb_add_piece_to(BLACK | ROOK, 5);
-                self.acc_sub_feature(BLACK | ROOK, 7, nnue);
-                self.acc_add_feature(BLACK | ROOK, 5, nnue);
-                self.mg_pst_score -= get_mg_piece_table_score(7, BLACK | ROOK, ROOK);
-                self.mg_pst_score += get_mg_piece_table_score(5, BLACK | ROOK, ROOK);
-                self.eg_pst_score -= get_eg_piece_table_score(7, BLACK | ROOK, ROOK);
-                self.eg_pst_score += get_eg_piece_table_score(5, BLACK | ROOK, ROOK);
+                // self.bb_remove_piece_from(BLACK | ROOK, 7);
+                // self.bb_add_piece_to(BLACK | ROOK, 5);
+                // self.acc_sub_feature(BLACK | ROOK, 7, nnue);
+                // self.acc_add_feature(BLACK | ROOK, 5, nnue);
+                self.acc_add_sub_feature(BLACK | ROOK, 5, BLACK | ROOK, 7, nnue);
+
+                // self.mg_pst_score -= get_mg_piece_table_score(7, BLACK | ROOK, ROOK);
+                // self.mg_pst_score += get_mg_piece_table_score(5, BLACK | ROOK, ROOK);
+                // self.eg_pst_score -= get_eg_piece_table_score(7, BLACK | ROOK, ROOK);
+                // self.eg_pst_score += get_eg_piece_table_score(5, BLACK | ROOK, ROOK);
                 self.hash ^= self.piece_hash(7, BLACK | ROOK);
                 self.hash ^= self.piece_hash(5, BLACK | ROOK);
             }
             2 => {
                 self.board[0] = EMPTY;
                 self.board[3] = BLACK | ROOK;
-                self.bb_remove_piece_from(BLACK | ROOK, 0);
-                self.bb_add_piece_to(BLACK | ROOK, 3);
-                self.acc_sub_feature(BLACK | ROOK, 0, nnue);
-                self.acc_add_feature(BLACK | ROOK, 3, nnue);
-                self.mg_pst_score -= get_mg_piece_table_score(0, BLACK | ROOK, ROOK);
-                self.mg_pst_score += get_mg_piece_table_score(3, BLACK | ROOK, ROOK);
-                self.eg_pst_score -= get_eg_piece_table_score(0, BLACK | ROOK, ROOK);
-                self.eg_pst_score += get_eg_piece_table_score(3, BLACK | ROOK, ROOK);
+                // self.bb_remove_piece_from(BLACK | ROOK, 0);
+                // self.bb_add_piece_to(BLACK | ROOK, 3);
+                // self.acc_sub_feature(BLACK | ROOK, 0, nnue);
+                // self.acc_add_feature(BLACK | ROOK, 3, nnue);
+                self.acc_add_sub_feature(BLACK | ROOK, 3, BLACK | ROOK, 0, nnue);
+
+                // self.mg_pst_score -= get_mg_piece_table_score(0, BLACK | ROOK, ROOK);
+                // self.mg_pst_score += get_mg_piece_table_score(3, BLACK | ROOK, ROOK);
+                // self.eg_pst_score -= get_eg_piece_table_score(0, BLACK | ROOK, ROOK);
+                // self.eg_pst_score += get_eg_piece_table_score(3, BLACK | ROOK, ROOK);
                 self.hash ^= self.piece_hash(0, BLACK | ROOK);
                 self.hash ^= self.piece_hash(3, BLACK | ROOK);
             }
@@ -316,48 +323,48 @@ impl Position {
             118 => {
                 self.board[119] = WHITE | ROOK;
                 self.board[117] = EMPTY;
-                self.bb_remove_piece_from(WHITE | ROOK, 117);
-                self.bb_add_piece_to(WHITE | ROOK, 119);
+                // self.bb_remove_piece_from(WHITE | ROOK, 117);
+                // self.bb_add_piece_to(WHITE | ROOK, 119);
             }
             114 => {
                 self.board[112] = WHITE | ROOK;
                 self.board[115] = EMPTY;
-                self.bb_remove_piece_from(WHITE | ROOK, 115);
-                self.bb_add_piece_to(WHITE | ROOK, 112);
+                // self.bb_remove_piece_from(WHITE | ROOK, 115);
+                // self.bb_add_piece_to(WHITE | ROOK, 112);
             }
             6 => {
                 self.board[7] = BLACK | ROOK;
                 self.board[5] = EMPTY;
-                self.bb_remove_piece_from(BLACK | ROOK, 5);
-                self.bb_add_piece_to(BLACK | ROOK, 7);
+                // self.bb_remove_piece_from(BLACK | ROOK, 5);
+                // self.bb_add_piece_to(BLACK | ROOK, 7);
             }
             2 => {
                 self.board[0] = BLACK | ROOK;
                 self.board[3] = EMPTY;
-                self.bb_remove_piece_from(BLACK | ROOK, 3);
-                self.bb_add_piece_to(BLACK | ROOK, 0);
+                // self.bb_remove_piece_from(BLACK | ROOK, 3);
+                // self.bb_add_piece_to(BLACK | ROOK, 0);
             }
             _ => panic!("invalid square to move to"),
         }
     }
 
-    fn bb_remove_piece_from(&mut self, piece: u8, square: usize) {
-        assert!(piece != EMPTY);
-        let bb_bit = 1u64 << sq88_to_bb(square);
-        let bb_side = ((get_piece_color(piece) / 8) - 1) as usize;
-        let bb_piece_type = (get_piece_type(piece) - 1) as usize;
-        self.bb_color[bb_side] &= !bb_bit;
-        self.bb_piece[bb_piece_type] &= !bb_bit;
-    }
+    // fn bb_remove_piece_from(&mut self, piece: u8, square: usize) {
+    //     assert!(piece != EMPTY);
+    //     let bb_bit = 1u64 << sq88_to_bb(square);
+    //     let bb_side = ((get_piece_color(piece) / 8) - 1) as usize;
+    //     let bb_piece_type = (get_piece_type(piece) - 1) as usize;
+    //     self.bb_color[bb_side] &= !bb_bit;
+    //     self.bb_piece[bb_piece_type] &= !bb_bit;
+    // }
 
-    fn bb_add_piece_to(&mut self, piece: u8, square: usize) {
-        assert!(piece != EMPTY);
-        let bb_bit = 1u64 << sq88_to_bb(square);
-        let bb_side = ((get_piece_color(piece) / 8) - 1) as usize;
-        let bb_piece_type = (get_piece_type(piece) - 1) as usize;
-        self.bb_color[bb_side] |= bb_bit;
-        self.bb_piece[bb_piece_type] |= bb_bit;
-    }
+    // fn bb_add_piece_to(&mut self, piece: u8, square: usize) {
+    //     assert!(piece != EMPTY);
+    //     let bb_bit = 1u64 << sq88_to_bb(square);
+    //     let bb_side = ((get_piece_color(piece) / 8) - 1) as usize;
+    //     let bb_piece_type = (get_piece_type(piece) - 1) as usize;
+    //     self.bb_color[bb_side] |= bb_bit;
+    //     self.bb_piece[bb_piece_type] |= bb_bit;
+    // }
 
     fn acc_add_feature(&mut self, piece: u8, square: usize, nnue: &Nnue) {
         let feature_idx = get_feature_index(square, piece);
@@ -365,12 +372,37 @@ impl Position {
             self.accumulator[i] += nnue.w1[i][feature_idx];
         }
     }
+    // fn acc_add_feature(&mut self, piece: u8, square: usize, nnue: &Nnue) {
+    //     let feature_idx = get_feature_index(square, piece);
+    //     let col = &nnue.w1;
+    //     unsafe {
+    //         for i in 0..H1_SIZE {
+    //             *self.accumulator.get_unchecked_mut(i) += col.get_unchecked(i).get_unchecked(feature_idx);
+    //         }
+    //     }
+    // }
     fn acc_sub_feature(&mut self, piece: u8, square: usize, nnue: &Nnue) {
         let feature_idx = get_feature_index(square, piece);
         for i in 0..H1_SIZE {
             self.accumulator[i] -= nnue.w1[i][feature_idx];
         }
     }
+    fn acc_add_sub_feature(&mut self, add_piece: u8, add_square: usize, sub_piece: u8, sub_square: usize, nnue: &Nnue) {
+        let add_idx = get_feature_index(add_square, add_piece);
+        let sub_idx = get_feature_index(sub_square, sub_piece);
+        for i in 0..H1_SIZE {
+            self.accumulator[i] += nnue.w1[i][add_idx] - nnue.w1[i][sub_idx];
+        }
+    }
+    // fn acc_sub_feature(&mut self, piece: u8, square: usize, nnue: &Nnue) {
+    //     let feature_idx = get_feature_index(square, piece);
+    //     let col = &nnue.w1;
+    //     unsafe {
+    //         for i in 0..H1_SIZE {
+    //             *self.accumulator.get_unchecked_mut(i) -= col.get_unchecked(i).get_unchecked(feature_idx);
+    //         }
+    //     }
+    // }
 
     pub fn make_move(&mut self, move_: &Move, ply: u32, nnue: &Nnue) {
         self.prev_target_piece[ply as usize] = self.board[move_.to];
@@ -379,10 +411,10 @@ impl Position {
         self.prev_ep_square[ply as usize] = self.enpassant_square;
         self.prev_hash[ply as usize] = self.hash;
         self.prev_fifty[ply as usize] = self.fifty;
-        self.prev_material_score[ply as usize] = self.material_score;
-        self.prev_mg_pst_score[ply as usize] = self.mg_pst_score;
-        self.prev_eg_pst_score[ply as usize] = self.eg_pst_score;
-        self.prev_phase_value[ply as usize] = self.phase_value;
+        // self.prev_material_score[ply as usize] = self.material_score;
+        // self.prev_mg_pst_score[ply as usize] = self.mg_pst_score;
+        // self.prev_eg_pst_score[ply as usize] = self.eg_pst_score;
+        // self.prev_phase_value[ply as usize] = self.phase_value;
         self.prev_accumulator[ply as usize] = self.accumulator;
 
         let piece = self.board[move_.from];
@@ -473,19 +505,23 @@ impl Position {
         if move_.is_enpassant {
             if self.is_white_turn {
                 self.board[move_.to + 16] = EMPTY;
-                self.bb_remove_piece_from(BLACK | PAWN, move_.to + 16);
+                // self.bb_remove_piece_from(BLACK | PAWN, move_.to + 16);
                 self.acc_sub_feature(BLACK | PAWN, move_.to + 16, nnue);
-                self.mg_pst_score -= get_mg_piece_table_score(move_.to + 16, BLACK | PAWN, PAWN);
-                self.eg_pst_score -= get_eg_piece_table_score(move_.to + 16, BLACK | PAWN, PAWN);
-                self.material_score -= get_piece_material_score(BLACK | PAWN);
+                // sub_piece = BLACK | PAWN;
+                // sub_square = move_.to + 16;
+                // self.mg_pst_score -= get_mg_piece_table_score(move_.to + 16, BLACK | PAWN, PAWN);
+                // self.eg_pst_score -= get_eg_piece_table_score(move_.to + 16, BLACK | PAWN, PAWN);
+                // self.material_score -= get_piece_material_score(BLACK | PAWN);
                 self.hash ^= self.piece_hash(move_.to + 16, BLACK | PAWN);
             } else {
                 self.board[move_.to - 16] = EMPTY;
-                self.bb_remove_piece_from(WHITE | PAWN, move_.to - 16);
+                // self.bb_remove_piece_from(WHITE | PAWN, move_.to - 16);
                 self.acc_sub_feature(WHITE | PAWN, move_.to - 16, nnue);
-                self.mg_pst_score -= get_mg_piece_table_score(move_.to - 16, WHITE | PAWN, PAWN);
-                self.eg_pst_score -= get_eg_piece_table_score(move_.to - 16, WHITE | PAWN, PAWN);
-                self.material_score -= get_piece_material_score(WHITE | PAWN);
+                // sub_piece = WHITE | PAWN;
+                // sub_square = move_.to - 16;
+                // self.mg_pst_score -= get_mg_piece_table_score(move_.to - 16, WHITE | PAWN, PAWN);
+                // self.eg_pst_score -= get_eg_piece_table_score(move_.to - 16, WHITE | PAWN, PAWN);
+                // self.material_score -= get_piece_material_score(WHITE | PAWN);
                 self.hash ^= self.piece_hash(move_.to - 16, WHITE | PAWN);
             }
         }
@@ -493,44 +529,51 @@ impl Position {
         if move_.is_capture {
             let target_piece = self.board[move_.to];
             if target_piece != EMPTY {
-                self.bb_remove_piece_from(target_piece, move_.to);
+                // self.bb_remove_piece_from(target_piece, move_.to);
                 self.acc_sub_feature(target_piece, move_.to, nnue);
-                self.mg_pst_score -=
-                    get_mg_piece_table_score(move_.to, target_piece, get_piece_type(target_piece));
-                self.eg_pst_score -=
-                    get_eg_piece_table_score(move_.to, target_piece, get_piece_type(target_piece));
-                self.material_score -= get_piece_material_score(target_piece);
-                self.phase_value -= get_phase_value(target_piece);
+                // sub_piece = target_piece;
+                // sub_square = move_.to;
+                // self.mg_pst_score -=
+                //     get_mg_piece_table_score(move_.to, target_piece, get_piece_type(target_piece));
+                // self.eg_pst_score -=
+                //     get_eg_piece_table_score(move_.to, target_piece, get_piece_type(target_piece));
+                // self.material_score -= get_piece_material_score(target_piece);
+                // self.phase_value -= get_phase_value(target_piece);
             }
             self.hash ^= self.piece_hash(move_.to, target_piece);
             self.fifty = 0;
         }
 
+        let mut add_piece = EMPTY;
+
         if let Some(prom_piece) = move_.promoted_piece {
             self.board[move_.to] = prom_piece;
-            self.bb_add_piece_to(prom_piece, move_.to);
-            self.acc_add_feature(prom_piece, move_.to, nnue);
-            self.mg_pst_score +=
-                get_mg_piece_table_score(move_.to, prom_piece, get_piece_type(prom_piece));
-            self.eg_pst_score +=
-                get_eg_piece_table_score(move_.to, prom_piece, get_piece_type(prom_piece));
-            self.material_score += get_piece_material_score(prom_piece);
-            self.material_score -= get_piece_material_score(piece);
+            // self.bb_add_piece_to(prom_piece, move_.to);
+            // self.acc_add_feature(prom_piece, move_.to, nnue);
+            add_piece = prom_piece;
+            // self.mg_pst_score +=
+            //     get_mg_piece_table_score(move_.to, prom_piece, get_piece_type(prom_piece));
+            // self.eg_pst_score +=
+            //     get_eg_piece_table_score(move_.to, prom_piece, get_piece_type(prom_piece));
+            // self.material_score += get_piece_material_score(prom_piece);
+            // self.material_score -= get_piece_material_score(piece);
             self.hash ^= self.piece_hash(move_.to, prom_piece);
         } else {
             self.board[move_.to] = piece;
-            self.bb_add_piece_to(piece, move_.to);
-            self.acc_add_feature(piece, move_.to, nnue);
-            self.mg_pst_score += get_mg_piece_table_score(move_.to, piece, piece_type);
-            self.eg_pst_score += get_eg_piece_table_score(move_.to, piece, piece_type);
+            // self.bb_add_piece_to(piece, move_.to);
+            // self.acc_add_feature(piece, move_.to, nnue);
+            add_piece = piece;
+            // self.mg_pst_score += get_mg_piece_table_score(move_.to, piece, piece_type);
+            // self.eg_pst_score += get_eg_piece_table_score(move_.to, piece, piece_type);
             self.hash ^= self.piece_hash(move_.to, piece);
         }
 
         self.board[move_.from] = EMPTY;
-        self.bb_remove_piece_from(piece, move_.from);
-        self.acc_sub_feature(piece, move_.from, nnue);
-        self.mg_pst_score -= get_mg_piece_table_score(move_.from, piece, piece_type);
-        self.eg_pst_score -= get_eg_piece_table_score(move_.from, piece, piece_type);
+        // self.bb_remove_piece_from(piece, move_.from);
+        self.acc_add_sub_feature(add_piece, move_.to, piece, move_.from, nnue);
+        // self.acc_sub_feature(piece, move_.from, nnue);
+        // self.mg_pst_score -= get_mg_piece_table_score(move_.from, piece, piece_type);
+        // self.eg_pst_score -= get_eg_piece_table_score(move_.from, piece, piece_type);
         self.hash ^= self.piece_hash(move_.from, piece);
         self.is_white_turn = !self.is_white_turn;
         self.hash ^= self.keys.black_to_move_key;
@@ -541,22 +584,22 @@ impl Position {
             self.revert_castling_move(move_);
         }
         let mut piece = self.board[move_.to];
-        self.bb_remove_piece_from(piece, move_.to);
+        // self.bb_remove_piece_from(piece, move_.to);
 
         self.board[move_.to] = self.prev_target_piece[ply as usize];
 
-        if self.prev_target_piece[ply as usize] != EMPTY {
-            self.bb_add_piece_to(self.prev_target_piece[ply as usize], move_.to);
-        }
+        // if self.prev_target_piece[ply as usize] != EMPTY {
+        //     self.bb_add_piece_to(self.prev_target_piece[ply as usize], move_.to);
+        // }
 
         self.is_white_turn = !self.is_white_turn;
         if move_.is_enpassant {
             if self.is_white_turn {
                 self.board[move_.to + 16] = BLACK | PAWN;
-                self.bb_add_piece_to(BLACK | PAWN, move_.to + 16);
+                // self.bb_add_piece_to(BLACK | PAWN, move_.to + 16);
             } else {
                 self.board[move_.to - 16] = WHITE | PAWN;
-                self.bb_add_piece_to(WHITE | PAWN, move_.to - 16);
+                // self.bb_add_piece_to(WHITE | PAWN, move_.to - 16);
             }
         }
         if move_.promoted_piece.is_some() {
@@ -568,17 +611,17 @@ impl Position {
         }
 
         self.board[move_.from] = piece;
-        self.bb_add_piece_to(piece, move_.from);
+        // self.bb_add_piece_to(piece, move_.from);
 
         self.castling_rights = self.prev_castling_rights[ply as usize];
         self.king_squares = self.prev_king_squares[ply as usize];
         self.enpassant_square = self.prev_ep_square[ply as usize];
         self.hash = self.prev_hash[ply as usize];
         self.fifty = self.prev_fifty[ply as usize];
-        self.material_score = self.prev_material_score[ply as usize];
-        self.mg_pst_score = self.prev_mg_pst_score[ply as usize];
-        self.eg_pst_score = self.prev_eg_pst_score[ply as usize];
-        self.phase_value = self.prev_phase_value[ply as usize];
+        // self.material_score = self.prev_material_score[ply as usize];
+        // self.mg_pst_score = self.prev_mg_pst_score[ply as usize];
+        // self.eg_pst_score = self.prev_eg_pst_score[ply as usize];
+        // self.phase_value = self.prev_phase_value[ply as usize];
         self.accumulator = self.prev_accumulator[ply as usize];
     }
 
