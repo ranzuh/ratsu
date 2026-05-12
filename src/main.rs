@@ -1,6 +1,35 @@
-use ratsu::uci::uci_loop;
+use ratsu::{
+    START_POSITION_FEN,
+    movegen::BOARD_SQUARES,
+    nnue::Nnue,
+    piece::{EMPTY, WHITE, get_piece_color, get_piece_type},
+    position::Position,
+    uci::uci_loop,
+};
 
 fn main() {
+    // const NNUE_BYTES: &[u8] = include_bytes!("../nnue/nnue.bin");
+    // let nnue = Nnue::load(NNUE_BYTES);
+    // let pos = Position::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNB1KBNR w KQkq - 0 1");
+
+    // let mut features = Vec::with_capacity(32);
+    // for sq128 in BOARD_SQUARES {
+    //     let piece = pos.board[sq128];
+    //     if piece == EMPTY {
+    //         continue;
+    //     }
+    //     let color = if get_piece_color(piece) == WHITE {
+    //         0
+    //     } else {
+    //         1
+    //     };
+    //     let pt = (get_piece_type(piece) - 1) as usize;
+    //     let sq64 = (sq128 >> 4) * 8 + (sq128 & 7);
+    //     features.push(color * 384 + pt * 64 + sq64);
+    // }
+
+    // println!("{}", nnue.forward(&features));
+
     uci_loop();
 }
 

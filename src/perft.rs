@@ -1,4 +1,4 @@
-use crate::{movegen::get_move_string, position::Position, search::is_legal};
+use crate::{movegen::get_move_string, nnue::{self, Nnue}, position::Position, search::is_legal};
 use std::time::Instant;
 
 #[derive(Default, Debug)]
@@ -9,7 +9,7 @@ pub struct PerftCounts {
     pub promotions: u64,
 }
 
-pub fn perft(depth: u32, position: &mut Position, counts: &mut PerftCounts, divide: bool) -> u64 {
+pub fn perft(depth: u32, position: &mut Position, counts: &mut PerftCounts, divide: bool, nnue: &Nnue) -> u64 {
     let mut nodes: u64 = 0;
 
     if depth == 0 {
@@ -18,7 +18,7 @@ pub fn perft(depth: u32, position: &mut Position, counts: &mut PerftCounts, divi
 
     let moves = position.generate_pseudo_moves();
     for move_ in moves {
-        position.make_move(&move_, depth);
+        position.make_move(&move_, depth, nnue);
         if is_legal(position) {
             // TODO: remove later? - debug stuff
             if move_.is_castling {
@@ -34,7 +34,7 @@ pub fn perft(depth: u32, position: &mut Position, counts: &mut PerftCounts, divi
                 counts.promotions += 1;
             }
 
-            let result = perft(depth - 1, position, counts, false);
+            let result = perft(depth - 1, position, counts, false, nnue);
 
             if divide {
                 println!("{} {}", get_move_string(&move_), result);
@@ -47,11 +47,11 @@ pub fn perft(depth: u32, position: &mut Position, counts: &mut PerftCounts, divi
     nodes
 }
 
-pub fn run_perft(depth: u32, position: &mut Position) {
+pub fn run_perft(depth: u32, position: &mut Position,  nnue: &Nnue) {
     let mut counts = PerftCounts::default();
 
     let start = Instant::now();
-    let total_nodes = perft(depth, position, &mut counts, true);
+    let total_nodes = perft(depth, position, &mut counts, true, nnue);
     let duration = start.elapsed().as_secs_f32();
     let nodes_per_sec = (total_nodes as f32 / duration) as u64;
 

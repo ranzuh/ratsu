@@ -3,6 +3,7 @@ pub mod evaluation;
 pub mod hash;
 pub mod movegen;
 pub mod moveordering;
+pub mod nnue;
 pub mod perft;
 pub mod piece;
 pub mod position;

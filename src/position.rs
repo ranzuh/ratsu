@@ -3,6 +3,7 @@ use crate::evaluation::{
 };
 use crate::hash::ZobristKeys;
 use crate::movegen::{BOARD_SQUARES, Move, get_file, get_rank, get_square_string, is_off_board};
+use crate::nnue::{H1_SIZE, Nnue, get_feature_index};
 use crate::piece::*;
 
 pub fn get_square_in_64(square_in_128: usize) -> usize {
@@ -45,6 +46,7 @@ pub struct Position {
     pub mg_pst_score: i32,
     pub eg_pst_score: i32,
     pub phase_value: i32,
+    pub accumulator: [i16; 512],
 
     prev_target_piece: [u8; 64],
     prev_castling_rights: [[bool; 4]; 64],
@@ -56,6 +58,7 @@ pub struct Position {
     prev_mg_pst_score: [i32; 64],
     prev_eg_pst_score: [i32; 64],
     prev_phase_value: [i32; 64],
+    prev_accumulator: [[i16; 512]; 64],
 }
 
 impl Position {
@@ -95,7 +98,7 @@ impl Position {
         false
     }
 
-    pub fn from_fen(fen_string: &str) -> Self {
+    pub fn from_fen(fen_string: &str, nnue: &Nnue) -> Self {
         let mut pos = Position {
             board: [EMPTY; 128],
             is_white_turn: false,
@@ -113,6 +116,7 @@ impl Position {
             mg_pst_score: 0,
             eg_pst_score: 0,
             phase_value: 0,
+            accumulator: [0i16; H1_SIZE],
 
             prev_target_piece: [0u8; 64],
             prev_castling_rights: [[false, false, false, false]; 64],
@@ -124,7 +128,9 @@ impl Position {
             prev_mg_pst_score: [0i32; 64],
             prev_eg_pst_score: [0i32; 64],
             prev_phase_value: [0i32; 64],
+            prev_accumulator: [[0i16; H1_SIZE]; 64],
         };
+
         let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
         // currently using only the piece placement, later use side, castling, ep, etc.
         let piece_placement = fen_parts[0];
@@ -140,6 +146,8 @@ impl Position {
         }
 
         pos.is_white_turn = side_to_move == "w";
+
+        pos.accumulator = nnue.b1;
 
         let mut i: usize = 0;
         for c in piece_placement.chars() {
@@ -158,6 +166,7 @@ impl Position {
                 pos.board[i] = piece;
 
                 pos.bb_add_piece_to(piece, i);
+                pos.acc_add_feature(piece, i, nnue);
                 pos.material_score += get_piece_material_score(piece);
                 pos.mg_pst_score += get_mg_piece_table_score(i, piece, get_piece_type(piece));
                 pos.eg_pst_score += get_eg_piece_table_score(i, piece, get_piece_type(piece));
@@ -227,8 +236,8 @@ impl Position {
         crate::movegen::generate_pseudo_moves(self, true)
     }
 
-    pub fn generate_legal_moves(&mut self) -> Vec<Move> {
-        crate::movegen::generate_legal_moves(self)
+    pub fn generate_legal_moves(&mut self, nnue: &Nnue) -> Vec<Move> {
+        crate::movegen::generate_legal_moves(self, nnue)
     }
 
     fn side_has_castling_rights(&self) -> bool {
@@ -239,7 +248,7 @@ impl Position {
         }
     }
 
-    fn handle_castling_move(&mut self, move_: &Move) {
+    fn handle_castling_move(&mut self, move_: &Move, nnue: &Nnue) {
         // castling rights removal is handled when king moves
         match move_.to {
             118 => {
@@ -247,6 +256,8 @@ impl Position {
                 self.board[117] = WHITE | ROOK;
                 self.bb_remove_piece_from(WHITE | ROOK, 119);
                 self.bb_add_piece_to(WHITE | ROOK, 117);
+                self.acc_sub_feature(WHITE | ROOK, 119, nnue);
+                self.acc_add_feature(WHITE | ROOK, 117, nnue);
                 self.mg_pst_score -= get_mg_piece_table_score(119, WHITE | ROOK, ROOK);
                 self.mg_pst_score += get_mg_piece_table_score(117, WHITE | ROOK, ROOK);
                 self.eg_pst_score -= get_eg_piece_table_score(119, WHITE | ROOK, ROOK);
@@ -259,6 +270,8 @@ impl Position {
                 self.board[115] = WHITE | ROOK;
                 self.bb_remove_piece_from(WHITE | ROOK, 112);
                 self.bb_add_piece_to(WHITE | ROOK, 115);
+                self.acc_sub_feature(WHITE | ROOK, 112, nnue);
+                self.acc_add_feature(WHITE | ROOK, 115, nnue);
                 self.mg_pst_score -= get_mg_piece_table_score(112, WHITE | ROOK, ROOK);
                 self.mg_pst_score += get_mg_piece_table_score(115, WHITE | ROOK, ROOK);
                 self.eg_pst_score -= get_eg_piece_table_score(112, WHITE | ROOK, ROOK);
@@ -271,6 +284,8 @@ impl Position {
                 self.board[5] = BLACK | ROOK;
                 self.bb_remove_piece_from(BLACK | ROOK, 7);
                 self.bb_add_piece_to(BLACK | ROOK, 5);
+                self.acc_sub_feature(BLACK | ROOK, 7, nnue);
+                self.acc_add_feature(BLACK | ROOK, 5, nnue);
                 self.mg_pst_score -= get_mg_piece_table_score(7, BLACK | ROOK, ROOK);
                 self.mg_pst_score += get_mg_piece_table_score(5, BLACK | ROOK, ROOK);
                 self.eg_pst_score -= get_eg_piece_table_score(7, BLACK | ROOK, ROOK);
@@ -283,6 +298,8 @@ impl Position {
                 self.board[3] = BLACK | ROOK;
                 self.bb_remove_piece_from(BLACK | ROOK, 0);
                 self.bb_add_piece_to(BLACK | ROOK, 3);
+                self.acc_sub_feature(BLACK | ROOK, 0, nnue);
+                self.acc_add_feature(BLACK | ROOK, 3, nnue);
                 self.mg_pst_score -= get_mg_piece_table_score(0, BLACK | ROOK, ROOK);
                 self.mg_pst_score += get_mg_piece_table_score(3, BLACK | ROOK, ROOK);
                 self.eg_pst_score -= get_eg_piece_table_score(0, BLACK | ROOK, ROOK);
@@ -342,7 +359,20 @@ impl Position {
         self.bb_piece[bb_piece_type] |= bb_bit;
     }
 
-    pub fn make_move(&mut self, move_: &Move, ply: u32) {
+    fn acc_add_feature(&mut self, piece: u8, square: usize, nnue: &Nnue) {
+        let feature_idx = get_feature_index(square, piece);
+        for i in 0..H1_SIZE {
+            self.accumulator[i] += nnue.w1[i][feature_idx];
+        }
+    }
+    fn acc_sub_feature(&mut self, piece: u8, square: usize, nnue: &Nnue) {
+        let feature_idx = get_feature_index(square, piece);
+        for i in 0..H1_SIZE {
+            self.accumulator[i] -= nnue.w1[i][feature_idx];
+        }
+    }
+
+    pub fn make_move(&mut self, move_: &Move, ply: u32, nnue: &Nnue) {
         self.prev_target_piece[ply as usize] = self.board[move_.to];
         self.prev_castling_rights[ply as usize] = self.castling_rights;
         self.prev_king_squares[ply as usize] = self.king_squares;
@@ -353,6 +383,7 @@ impl Position {
         self.prev_mg_pst_score[ply as usize] = self.mg_pst_score;
         self.prev_eg_pst_score[ply as usize] = self.eg_pst_score;
         self.prev_phase_value[ply as usize] = self.phase_value;
+        self.prev_accumulator[ply as usize] = self.accumulator;
 
         let piece = self.board[move_.from];
         let piece_type = get_piece_type(piece);
@@ -413,7 +444,7 @@ impl Position {
         }
 
         if move_.is_castling {
-            self.handle_castling_move(move_);
+            self.handle_castling_move(move_, nnue);
         }
 
         if piece_type == KING {
@@ -443,6 +474,7 @@ impl Position {
             if self.is_white_turn {
                 self.board[move_.to + 16] = EMPTY;
                 self.bb_remove_piece_from(BLACK | PAWN, move_.to + 16);
+                self.acc_sub_feature(BLACK | PAWN, move_.to + 16, nnue);
                 self.mg_pst_score -= get_mg_piece_table_score(move_.to + 16, BLACK | PAWN, PAWN);
                 self.eg_pst_score -= get_eg_piece_table_score(move_.to + 16, BLACK | PAWN, PAWN);
                 self.material_score -= get_piece_material_score(BLACK | PAWN);
@@ -450,6 +482,7 @@ impl Position {
             } else {
                 self.board[move_.to - 16] = EMPTY;
                 self.bb_remove_piece_from(WHITE | PAWN, move_.to - 16);
+                self.acc_sub_feature(WHITE | PAWN, move_.to - 16, nnue);
                 self.mg_pst_score -= get_mg_piece_table_score(move_.to - 16, WHITE | PAWN, PAWN);
                 self.eg_pst_score -= get_eg_piece_table_score(move_.to - 16, WHITE | PAWN, PAWN);
                 self.material_score -= get_piece_material_score(WHITE | PAWN);
@@ -461,6 +494,7 @@ impl Position {
             let target_piece = self.board[move_.to];
             if target_piece != EMPTY {
                 self.bb_remove_piece_from(target_piece, move_.to);
+                self.acc_sub_feature(target_piece, move_.to, nnue);
                 self.mg_pst_score -=
                     get_mg_piece_table_score(move_.to, target_piece, get_piece_type(target_piece));
                 self.eg_pst_score -=
@@ -475,6 +509,7 @@ impl Position {
         if let Some(prom_piece) = move_.promoted_piece {
             self.board[move_.to] = prom_piece;
             self.bb_add_piece_to(prom_piece, move_.to);
+            self.acc_add_feature(prom_piece, move_.to, nnue);
             self.mg_pst_score +=
                 get_mg_piece_table_score(move_.to, prom_piece, get_piece_type(prom_piece));
             self.eg_pst_score +=
@@ -485,6 +520,7 @@ impl Position {
         } else {
             self.board[move_.to] = piece;
             self.bb_add_piece_to(piece, move_.to);
+            self.acc_add_feature(piece, move_.to, nnue);
             self.mg_pst_score += get_mg_piece_table_score(move_.to, piece, piece_type);
             self.eg_pst_score += get_eg_piece_table_score(move_.to, piece, piece_type);
             self.hash ^= self.piece_hash(move_.to, piece);
@@ -492,6 +528,7 @@ impl Position {
 
         self.board[move_.from] = EMPTY;
         self.bb_remove_piece_from(piece, move_.from);
+        self.acc_sub_feature(piece, move_.from, nnue);
         self.mg_pst_score -= get_mg_piece_table_score(move_.from, piece, piece_type);
         self.eg_pst_score -= get_eg_piece_table_score(move_.from, piece, piece_type);
         self.hash ^= self.piece_hash(move_.from, piece);
@@ -542,6 +579,7 @@ impl Position {
         self.mg_pst_score = self.prev_mg_pst_score[ply as usize];
         self.eg_pst_score = self.prev_eg_pst_score[ply as usize];
         self.phase_value = self.prev_phase_value[ply as usize];
+        self.accumulator = self.prev_accumulator[ply as usize];
     }
 
     pub fn make_null(&mut self) {
