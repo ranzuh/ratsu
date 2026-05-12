@@ -178,7 +178,7 @@ impl<'a> Search<'a> {
         if self.timer.should_stop(self.stats.node_count) {
             return 0;
         }
-        let stand_pat = nnue_evaluate(self.position, self.nnue);
+        let stand_pat = nnue_evaluate(self.position, self.nnue, ply);
 
         if stand_pat >= beta {
             return beta; // fail hard beta-cutoff
@@ -276,7 +276,7 @@ impl<'a> Search<'a> {
         // Futility pruning condition
         let mut futility_prune = false;
         if self.use_pruning && depth <= 2 && !in_check && !pv_node {
-            let eval = nnue_evaluate(self.position, self.nnue);
+            let eval = nnue_evaluate(self.position, self.nnue, ply);
             let margin = if depth == 1 { 100 } else { 300 };
             if eval + margin < alpha {
                 futility_prune = true;

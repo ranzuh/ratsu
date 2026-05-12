@@ -113,8 +113,8 @@ pub fn get_feature_index(sq128: usize, piece: u8) -> usize {
 //     score * side
 // }
 
-pub fn nnue_evaluate(position: &Position, nnue: &Nnue) -> i32 {
-    let raw = nnue.forward_from_accumulator(&position.accumulator);
+pub fn nnue_evaluate(position: &Position, nnue: &Nnue, ply: u32) -> i32 {
+    let raw = nnue.forward_from_accumulator(&position.accumulator[ply as usize]);
     let scale = 400.0;
     let score = (raw * scale) as i32;
     let side = if position.is_white_turn { 1 } else { -1 };

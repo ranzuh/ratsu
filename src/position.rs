@@ -46,7 +46,7 @@ pub struct Position {
     // pub mg_pst_score: i32,
     // pub eg_pst_score: i32,
     // pub phase_value: i32,
-    pub accumulator: [i16; H1_SIZE],
+    pub accumulator: [[i16; H1_SIZE]; 64],
 
     prev_target_piece: [u8; 64],
     prev_castling_rights: [[bool; 4]; 64],
@@ -58,7 +58,7 @@ pub struct Position {
     // prev_mg_pst_score: [i32; 64],
     // prev_eg_pst_score: [i32; 64],
     // prev_phase_value: [i32; 64],
-    prev_accumulator: [[i16; H1_SIZE]; 64],
+    // prev_accumulator: [[i16; H1_SIZE]; 64],
 }
 
 impl Position {
@@ -116,7 +116,7 @@ impl Position {
             // mg_pst_score: 0,
             // eg_pst_score: 0,
             // phase_value: 0,
-            accumulator: [0i16; H1_SIZE],
+            accumulator: [[0i16; H1_SIZE]; 64],
 
             prev_target_piece: [0u8; 64],
             prev_castling_rights: [[false, false, false, false]; 64],
@@ -128,7 +128,7 @@ impl Position {
             // prev_mg_pst_score: [0i32; 64],
             // prev_eg_pst_score: [0i32; 64],
             // prev_phase_value: [0i32; 64],
-            prev_accumulator: [[0i16; H1_SIZE]; 64],
+            // prev_accumulator: [[0i16; H1_SIZE]; 64],
         };
 
         let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
@@ -147,7 +147,7 @@ impl Position {
 
         pos.is_white_turn = side_to_move == "w";
 
-        pos.accumulator = nnue.b1;
+        pos.accumulator[0] = nnue.b1;
 
         let mut i: usize = 0;
         for c in piece_placement.chars() {
@@ -166,7 +166,7 @@ impl Position {
                 pos.board[i] = piece;
 
                 // pos.bb_add_piece_to(piece, i);
-                pos.acc_add_feature(piece, i, nnue);
+                pos.acc_init_add(piece, i, nnue);
                 // pos.material_score += get_piece_material_score(piece);
                 // pos.mg_pst_score += get_mg_piece_table_score(i, piece, get_piece_type(piece));
                 // pos.eg_pst_score += get_eg_piece_table_score(i, piece, get_piece_type(piece));
@@ -248,7 +248,7 @@ impl Position {
         }
     }
 
-    fn handle_castling_move(&mut self, move_: &Move, nnue: &Nnue) {
+    fn handle_castling_move(&mut self, move_: &Move, ply: u32, nnue: &Nnue) {
         // castling rights removal is handled when king moves
         match move_.to {
             118 => {
@@ -258,7 +258,7 @@ impl Position {
                 // self.bb_add_piece_to(WHITE | ROOK, 117);
                 // self.acc_sub_feature(WHITE | ROOK, 119, nnue);
                 // self.acc_add_feature(WHITE | ROOK, 117, nnue);
-                self.acc_add_sub_feature(WHITE | ROOK, 117, WHITE | ROOK, 119, nnue);
+                self.acc_add_sub_feature(WHITE | ROOK, 117, WHITE | ROOK, 119, ply, nnue);
                 // self.mg_pst_score -= get_mg_piece_table_score(119, WHITE | ROOK, ROOK);
                 // self.mg_pst_score += get_mg_piece_table_score(117, WHITE | ROOK, ROOK);
                 // self.eg_pst_score -= get_eg_piece_table_score(119, WHITE | ROOK, ROOK);
@@ -273,7 +273,7 @@ impl Position {
                 // self.bb_add_piece_to(WHITE | ROOK, 115);
                 // self.acc_sub_feature(WHITE | ROOK, 112, nnue);
                 // self.acc_add_feature(WHITE | ROOK, 115, nnue);
-                self.acc_add_sub_feature(WHITE | ROOK, 115, WHITE | ROOK, 112, nnue);
+                self.acc_add_sub_feature(WHITE | ROOK, 115, WHITE | ROOK, 112, ply, nnue);
 
                 // self.mg_pst_score -= get_mg_piece_table_score(112, WHITE | ROOK, ROOK);
                 // self.mg_pst_score += get_mg_piece_table_score(115, WHITE | ROOK, ROOK);
@@ -289,7 +289,7 @@ impl Position {
                 // self.bb_add_piece_to(BLACK | ROOK, 5);
                 // self.acc_sub_feature(BLACK | ROOK, 7, nnue);
                 // self.acc_add_feature(BLACK | ROOK, 5, nnue);
-                self.acc_add_sub_feature(BLACK | ROOK, 5, BLACK | ROOK, 7, nnue);
+                self.acc_add_sub_feature(BLACK | ROOK, 5, BLACK | ROOK, 7, ply, nnue);
 
                 // self.mg_pst_score -= get_mg_piece_table_score(7, BLACK | ROOK, ROOK);
                 // self.mg_pst_score += get_mg_piece_table_score(5, BLACK | ROOK, ROOK);
@@ -305,7 +305,7 @@ impl Position {
                 // self.bb_add_piece_to(BLACK | ROOK, 3);
                 // self.acc_sub_feature(BLACK | ROOK, 0, nnue);
                 // self.acc_add_feature(BLACK | ROOK, 3, nnue);
-                self.acc_add_sub_feature(BLACK | ROOK, 3, BLACK | ROOK, 0, nnue);
+                self.acc_add_sub_feature(BLACK | ROOK, 3, BLACK | ROOK, 0, ply, nnue);
 
                 // self.mg_pst_score -= get_mg_piece_table_score(0, BLACK | ROOK, ROOK);
                 // self.mg_pst_score += get_mg_piece_table_score(3, BLACK | ROOK, ROOK);
@@ -366,32 +366,30 @@ impl Position {
     //     self.bb_piece[bb_piece_type] |= bb_bit;
     // }
 
-    fn acc_add_feature(&mut self, piece: u8, square: usize, nnue: &Nnue) {
+    fn acc_init_add(&mut self, piece: u8, square: usize, nnue: &Nnue) {
         let feature_idx = get_feature_index(square, piece);
         for i in 0..H1_SIZE {
-            self.accumulator[i] += nnue.w1[i][feature_idx];
+            self.accumulator[0][i] += nnue.w1[i][feature_idx];
         }
     }
-    // fn acc_add_feature(&mut self, piece: u8, square: usize, nnue: &Nnue) {
-    //     let feature_idx = get_feature_index(square, piece);
-    //     let col = &nnue.w1;
-    //     unsafe {
-    //         for i in 0..H1_SIZE {
-    //             *self.accumulator.get_unchecked_mut(i) += col.get_unchecked(i).get_unchecked(feature_idx);
-    //         }
-    //     }
-    // }
-    fn acc_sub_feature(&mut self, piece: u8, square: usize, nnue: &Nnue) {
+
+    fn acc_add_feature(&mut self, piece: u8, square: usize, nnue: &Nnue, ply: u32) {
         let feature_idx = get_feature_index(square, piece);
         for i in 0..H1_SIZE {
-            self.accumulator[i] -= nnue.w1[i][feature_idx];
+            self.accumulator[(ply + 1) as usize][i] = self.accumulator[(ply) as usize][i] + nnue.w1[i][feature_idx];
         }
     }
-    fn acc_add_sub_feature(&mut self, add_piece: u8, add_square: usize, sub_piece: u8, sub_square: usize, nnue: &Nnue) {
+    fn acc_sub_feature(&mut self, piece: u8, square: usize, nnue: &Nnue, ply: u32) {
+        let feature_idx = get_feature_index(square, piece);
+        for i in 0..H1_SIZE {
+            self.accumulator[(ply + 1) as usize][i] = self.accumulator[(ply) as usize][i] - nnue.w1[i][feature_idx];
+        }
+    }
+    fn acc_add_sub_feature(&mut self, add_piece: u8, add_square: usize, sub_piece: u8, sub_square: usize, ply: u32, nnue: &Nnue) {
         let add_idx = get_feature_index(add_square, add_piece);
         let sub_idx = get_feature_index(sub_square, sub_piece);
         for i in 0..H1_SIZE {
-            self.accumulator[i] += nnue.w1[i][add_idx] - nnue.w1[i][sub_idx];
+            self.accumulator[(ply + 1) as usize][i] = self.accumulator[(ply) as usize][i] + nnue.w1[i][add_idx] - nnue.w1[i][sub_idx];
         }
     }
     // fn acc_sub_feature(&mut self, piece: u8, square: usize, nnue: &Nnue) {
@@ -415,7 +413,7 @@ impl Position {
         // self.prev_mg_pst_score[ply as usize] = self.mg_pst_score;
         // self.prev_eg_pst_score[ply as usize] = self.eg_pst_score;
         // self.prev_phase_value[ply as usize] = self.phase_value;
-        self.prev_accumulator[ply as usize] = self.accumulator;
+        // self.prev_accumulator[ply as usize] = self.accumulator;
 
         let piece = self.board[move_.from];
         let piece_type = get_piece_type(piece);
@@ -476,7 +474,7 @@ impl Position {
         }
 
         if move_.is_castling {
-            self.handle_castling_move(move_, nnue);
+            self.handle_castling_move(move_, ply, nnue);
         }
 
         if piece_type == KING {
@@ -506,7 +504,7 @@ impl Position {
             if self.is_white_turn {
                 self.board[move_.to + 16] = EMPTY;
                 // self.bb_remove_piece_from(BLACK | PAWN, move_.to + 16);
-                self.acc_sub_feature(BLACK | PAWN, move_.to + 16, nnue);
+                self.acc_sub_feature(BLACK | PAWN, move_.to + 16, nnue, ply);
                 // sub_piece = BLACK | PAWN;
                 // sub_square = move_.to + 16;
                 // self.mg_pst_score -= get_mg_piece_table_score(move_.to + 16, BLACK | PAWN, PAWN);
@@ -516,7 +514,7 @@ impl Position {
             } else {
                 self.board[move_.to - 16] = EMPTY;
                 // self.bb_remove_piece_from(WHITE | PAWN, move_.to - 16);
-                self.acc_sub_feature(WHITE | PAWN, move_.to - 16, nnue);
+                self.acc_sub_feature(WHITE | PAWN, move_.to - 16, nnue, ply);
                 // sub_piece = WHITE | PAWN;
                 // sub_square = move_.to - 16;
                 // self.mg_pst_score -= get_mg_piece_table_score(move_.to - 16, WHITE | PAWN, PAWN);
@@ -530,7 +528,7 @@ impl Position {
             let target_piece = self.board[move_.to];
             if target_piece != EMPTY {
                 // self.bb_remove_piece_from(target_piece, move_.to);
-                self.acc_sub_feature(target_piece, move_.to, nnue);
+                self.acc_sub_feature(target_piece, move_.to, nnue, ply);
                 // sub_piece = target_piece;
                 // sub_square = move_.to;
                 // self.mg_pst_score -=
@@ -544,7 +542,7 @@ impl Position {
             self.fifty = 0;
         }
 
-        let mut add_piece = EMPTY;
+        let add_piece;
 
         if let Some(prom_piece) = move_.promoted_piece {
             self.board[move_.to] = prom_piece;
@@ -570,7 +568,7 @@ impl Position {
 
         self.board[move_.from] = EMPTY;
         // self.bb_remove_piece_from(piece, move_.from);
-        self.acc_add_sub_feature(add_piece, move_.to, piece, move_.from, nnue);
+        self.acc_add_sub_feature(add_piece, move_.to, piece, move_.from, ply, nnue);
         // self.acc_sub_feature(piece, move_.from, nnue);
         // self.mg_pst_score -= get_mg_piece_table_score(move_.from, piece, piece_type);
         // self.eg_pst_score -= get_eg_piece_table_score(move_.from, piece, piece_type);
@@ -622,7 +620,7 @@ impl Position {
         // self.mg_pst_score = self.prev_mg_pst_score[ply as usize];
         // self.eg_pst_score = self.prev_eg_pst_score[ply as usize];
         // self.phase_value = self.prev_phase_value[ply as usize];
-        self.accumulator = self.prev_accumulator[ply as usize];
+        // self.accumulator = self.prev_accumulator[ply as usize];
     }
 
     pub fn make_null(&mut self) {
