@@ -1,6 +1,6 @@
 use crate::hash::ZobristKeys;
 use crate::movegen::{BOARD_SQUARES, Move, get_file, get_rank, get_square_string, is_off_board};
-use crate::nnue::{HIDDEN_SIZE, Nnue, get_feature_index};
+use crate::nnue::{ACC_SIZE, Nnue, get_feature_index};
 use crate::piece::*;
 
 pub fn get_square_in_64(square_in_128: usize) -> usize {
@@ -37,7 +37,8 @@ pub struct Position {
     pub repetition_stack: [u64; 1024],
     pub repetition_index: usize,
     pub fifty: u8,
-    pub accumulator: [i16; HIDDEN_SIZE],
+    pub acc_white: [i16; ACC_SIZE],
+    pub acc_black: [i16; ACC_SIZE],
 
     prev_target_piece: [u8; 64],
     prev_castling_rights: [[bool; 4]; 64],
@@ -45,7 +46,8 @@ pub struct Position {
     prev_ep_square: [Option<usize>; 64],
     prev_hash: [u64; 64],
     prev_fifty: [u8; 64],
-    prev_accumulator: [[i16; HIDDEN_SIZE]; 64],
+    prev_acc_white: [[i16; ACC_SIZE]; 64],
+    prev_acc_black: [[i16; ACC_SIZE]; 64],
 }
 
 impl Position {
@@ -86,16 +88,24 @@ impl Position {
     }
 
     fn acc_add_feature(&mut self, piece: u8, square: usize, nnue: &Nnue) {
-        let col = &nnue.acc_weights[get_feature_index(square, piece)];
-        for i in 0..HIDDEN_SIZE {
-            self.accumulator[i] += col[i];
+        let wi = get_feature_index(square, piece, true);
+        let bi = get_feature_index(square, piece, false);
+        let w_col = &nnue.acc_weights[wi];
+        let b_col = &nnue.acc_weights[bi];
+        for i in 0..ACC_SIZE {
+            self.acc_white[i] += w_col[i];
+            self.acc_black[i] += b_col[i];
         }
     }
 
     fn acc_sub_feature(&mut self, piece: u8, square: usize, nnue: &Nnue) {
-        let col = &nnue.acc_weights[get_feature_index(square, piece)];
-        for i in 0..HIDDEN_SIZE {
-            self.accumulator[i] -= col[i];
+        let wi = get_feature_index(square, piece, true);
+        let bi = get_feature_index(square, piece, false);
+        let w_col = &nnue.acc_weights[wi];
+        let b_col = &nnue.acc_weights[bi];
+        for i in 0..ACC_SIZE {
+            self.acc_white[i] -= w_col[i];
+            self.acc_black[i] -= b_col[i];
         }
     }
 
@@ -107,10 +117,17 @@ impl Position {
         sub_square: usize,
         nnue: &Nnue,
     ) {
-        let add_col = &nnue.acc_weights[get_feature_index(add_square, add_piece)];
-        let sub_col = &nnue.acc_weights[get_feature_index(sub_square, sub_piece)];
-        for i in 0..HIDDEN_SIZE {
-            self.accumulator[i] += add_col[i] - sub_col[i];
+        let aw = get_feature_index(add_square, add_piece, true);
+        let ab = get_feature_index(add_square, add_piece, false);
+        let sw = get_feature_index(sub_square, sub_piece, true);
+        let sb = get_feature_index(sub_square, sub_piece, false);
+        let aw_col = &nnue.acc_weights[aw];
+        let ab_col = &nnue.acc_weights[ab];
+        let sw_col = &nnue.acc_weights[sw];
+        let sb_col = &nnue.acc_weights[sb];
+        for i in 0..ACC_SIZE {
+            self.acc_white[i] += aw_col[i] - sw_col[i];
+            self.acc_black[i] += ab_col[i] - sb_col[i];
         }
     }
 
@@ -126,7 +143,8 @@ impl Position {
             repetition_stack: [0u64; 1024],
             repetition_index: 0,
             fifty: 0,
-            accumulator: [0i16; HIDDEN_SIZE],
+            acc_white: [0i16; ACC_SIZE],
+            acc_black: [0i16; ACC_SIZE],
 
             prev_target_piece: [0u8; 64],
             prev_castling_rights: [[false, false, false, false]; 64],
@@ -134,7 +152,8 @@ impl Position {
             prev_ep_square: [None; 64],
             prev_hash: [0u64; 64],
             prev_fifty: [0u8; 64],
-            prev_accumulator: [[0i16; HIDDEN_SIZE]; 64],
+            prev_acc_white: [[0i16; ACC_SIZE]; 64],
+            prev_acc_black: [[0i16; ACC_SIZE]; 64],
         };
 
         let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
@@ -153,7 +172,8 @@ impl Position {
 
         pos.is_white_turn = side_to_move == "w";
 
-        pos.accumulator = nnue.acc_bias;
+        pos.acc_white = nnue.acc_bias;
+        pos.acc_black = nnue.acc_bias;
 
         let mut i: usize = 0;
         for c in piece_placement.chars() {
@@ -313,7 +333,8 @@ impl Position {
         self.prev_ep_square[ply as usize] = self.enpassant_square;
         self.prev_hash[ply as usize] = self.hash;
         self.prev_fifty[ply as usize] = self.fifty;
-        self.prev_accumulator[ply as usize] = self.accumulator;
+        self.prev_acc_white[ply as usize] = self.acc_white;
+        self.prev_acc_black[ply as usize] = self.acc_black;
 
         let piece = self.board[move_.from];
         let piece_type = get_piece_type(piece);
@@ -471,7 +492,8 @@ impl Position {
         self.enpassant_square = self.prev_ep_square[ply as usize];
         self.hash = self.prev_hash[ply as usize];
         self.fifty = self.prev_fifty[ply as usize];
-        self.accumulator = self.prev_accumulator[ply as usize];
+        self.acc_white = self.prev_acc_white[ply as usize];
+        self.acc_black = self.prev_acc_black[ply as usize];
     }
 
     pub fn make_null(&mut self) {

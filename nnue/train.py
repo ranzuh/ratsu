@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import torch
 import torch.nn as nn
 from pathlib import Path
@@ -5,71 +7,92 @@ import numpy as np
 
 
 class NNUE(nn.Module):
-    def __init__(self, input_size, hidden_size):
+    def __init__(self, input_size, acc_size):
         super().__init__()
-        self.input_layer, self.hidden_layer = (
-            nn.Linear(input_size, hidden_size),
-            nn.Linear(hidden_size, 1),
-        )
+        self.acc_layer = nn.Linear(input_size, acc_size)
+        self.out_layer = nn.Linear(acc_size * 2, 1)
 
-    def forward(self, x):
-        x = torch.clamp(self.input_layer(x), 0, 1)
-        return torch.sigmoid(self.hidden_layer(x))
+    def forward(self, w_x, b_x, is_white):
+        w_acc = torch.clamp(self.acc_layer(w_x), 0, 1)
+        b_acc = torch.clamp(self.acc_layer(b_x), 0, 1)
+
+        # Concatenate STM first, then opponent
+        stm_acc = torch.where(is_white.unsqueeze(1), w_acc, b_acc)
+        opp_acc = torch.where(is_white.unsqueeze(1), b_acc, w_acc)
+        combined = torch.cat([stm_acc, opp_acc], dim=1)  # [bs, 512]
+
+        return torch.sigmoid(self.out_layer(combined))
 
 
 def fen_to_features(fen):
-    "Convert FEN to list of active feature indices (768 sparse binary)"
+    "Returns (white_features, black_features, is_white_turn)"
     piece_idx = dict(P=0, N=1, B=2, R=3, Q=4, K=5, p=6, n=7, b=8, r=9, q=10, k=11)
-    board = fen.split()[0]
-    sq, feats = 0, []
+    # Black perspective swaps friendly/enemy and mirrors rank
+    flip_idx = dict(p=0, n=1, b=2, r=3, q=4, k=5, P=6, N=7, B=8, R=9, Q=10, K=11)
+
+    parts = fen.split()
+    board = parts[0]
+    is_white = parts[1] == "w"
+
+    sq = 0
+    w_feats, b_feats = [], []
     for ch in board:
         if ch == "/":
             continue
         elif ch.isdigit():
             sq += int(ch)
         else:
-            feats.append(piece_idx[ch] * 64 + sq)
+            # White perspective: normal
+            w_feats.append(piece_idx[ch] * 64 + sq)
+            # Black perspective: flip color mapping + mirror square
+            row, col = divmod(sq, 8)
+            mirrored_sq = (7 - row) * 8 + col
+            b_feats.append(flip_idx[ch] * 64 + mirrored_sq)
             sq += 1
-    return feats
+
+    return w_feats, b_feats, is_white
 
 
 def precompute_sparse(data_path, out_path="nnue_data.npz", max_pieces=32):
-    "Precompute sparse features as padded numpy array"
     lines = Path(data_path).read_text().strip().split("\n")
     n = len(lines)
-    indices = np.full((n, max_pieces), -1, dtype=np.int16)
+    w_indices = np.full((n, max_pieces), -1, dtype=np.int16)
+    b_indices = np.full((n, max_pieces), -1, dtype=np.int16)
+    stm = np.empty(n, dtype=np.bool_)
     results = np.empty(n, dtype=np.float32)
+
     for i, line in enumerate(lines):
         if i % 100000 == 0:
             print(f"Parsing data {i}/{len(lines)}")
 
         fen, result = line.rsplit(" [", 1)
         results[i] = float(result.rstrip("]"))
+        wf, bf, is_white = fen_to_features(fen)
+        w_indices[i, : len(wf)] = wf
+        b_indices[i, : len(bf)] = bf
+        stm[i] = is_white
 
-        # fen, epd_result = line.split(' "', 1)
-        # epd_result = epd_result.rstrip('";')
-        # if epd_result == "1-0":
-        #     result = 1.0
-        # elif epd_result == "0-1":
-        #     result = 0.0
-        # elif epd_result == "1/2-1/2":
-        #     result = 0.5
-        # else:
-        #     raise ValueError(f"Invalid result: {epd_result}")
-        # results[i] = float(result)
+    np.savez(
+        out_path, w_indices=w_indices, b_indices=b_indices, stm=stm, results=results
+    )
 
-        feats = fen_to_features(fen)
-        indices[i, : len(feats)] = feats
-    np.savez(out_path, indices=indices, results=results)
-    print(f"Saved {n} positions ({indices.nbytes/1e6:.0f}MB)")
+
+@dataclass
+class PositionData:
+    white_indices: torch.Tensor
+    black_indices: torch.Tensor
+    side_to_move: torch.Tensor
+    results: torch.Tensor
 
 
 def load_data(path="nnue_data.npz"):
     data = np.load(path)
-    indices = data["indices"].astype(np.int64)
-    results = data["results"]
+    w_indices = torch.from_numpy(data["w_indices"].astype(np.int64))
+    b_indices = torch.from_numpy(data["b_indices"].astype(np.int64))
+    stm = torch.from_numpy(data["stm"])  # bool tensor
+    results = torch.from_numpy(data["results"])
     print(f"loaded {len(results)} positions")
-    return torch.from_numpy(indices), torch.from_numpy(results)
+    return PositionData(w_indices, b_indices, stm, results)
 
 
 def make_dense_batch(indices, device):
@@ -81,6 +104,18 @@ def make_dense_batch(indices, device):
     return x
 
 
+def get_xsy(idx, device):
+    w_x = make_dense_batch(data.white_indices[idx].to(device), device)
+    b_x = make_dense_batch(data.black_indices[idx].to(device), device)
+    s = data.side_to_move[idx].to(device)
+
+    y = data.results[idx].unsqueeze(1).to(device)
+    # Flip result for black STM: 0→1, 1→0, 0.5→0.5
+    y = torch.where(s.unsqueeze(1), y, 1.0 - y)
+
+    return w_x, b_x, s, y
+
+
 class Trainer:
     def __init__(self, opt, sched, loss_fn, bs, device):
         self.opt = opt
@@ -89,15 +124,15 @@ class Trainer:
         self.bs = bs
         self.device = device
 
-    def run_train_epoch(self, model, train_idx, indices, results):
+    def run_train_epoch(self, model, train_idx, data: PositionData):
         model.train()
-        shuffled_train = torch.randperm(len(train_idx))
+        shuffled = torch.randperm(len(train_idx))
         total_loss, count = 0.0, 0
         for i in range(0, len(train_idx), self.bs):
-            idx = train_idx[shuffled_train[i : i + self.bs]]
-            x = make_dense_batch(indices[idx].to(self.device), self.device)
-            y = results[idx].unsqueeze(1).to(self.device)
-            loss = self.loss_fn(model(x), y)
+            idx = train_idx[shuffled[i : i + self.bs]]
+            w_x, b_x, s, y = get_xsy(idx, self.device)
+            pred = model(w_x, b_x, s)
+            loss = self.loss_fn(pred, y)
             self.opt.zero_grad()
             loss.backward()
             self.opt.step()
@@ -106,30 +141,30 @@ class Trainer:
         self.sched.step()
         return total_loss / count
 
-    def run_validation_epoch(self, model, val_idx, indices, results):
+    def run_validation_epoch(self, model, val_idx, data: PositionData):
         model.eval()
         total_loss = 0.0
         with torch.no_grad():
             for i in range(0, len(val_idx), self.bs):
                 idx = val_idx[i : i + self.bs]
-                x = make_dense_batch(indices[idx].to(self.device), self.device)
-                y = results[idx].unsqueeze(1).to(self.device)
-                total_loss += self.loss_fn(model(x), y).item() * len(idx)
+                w_x, b_x, s, y = get_xsy(idx, self.device)
+                pred = model(w_x, b_x, s)
+                total_loss += self.loss_fn(pred, y).item() * len(idx)
         return total_loss / len(val_idx)
 
 
-def train_nnue(model, indices, results, n_epochs=100, lr=1e-3, bs=16384):
+def train_nnue(model, data: PositionData, n_epochs=100, lr=1e-3, bs=16384, wd=1e-5):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     # train/val split
-    n = len(results)
+    n = len(data.results)
     n_val = n // 10
     perm = torch.randperm(n)
     val_idx, train_idx = perm[:n_val], perm[n_val:]
 
     # setup trainer
-    opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+    opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=n_epochs)
     loss_fn = nn.MSELoss()
     trainer = Trainer(opt, sched, loss_fn, bs, device)
@@ -137,8 +172,8 @@ def train_nnue(model, indices, results, n_epochs=100, lr=1e-3, bs=16384):
     # train for n_epochs
     best_val, best_state = float("inf"), None
     for epoch in range(n_epochs):
-        train_loss = trainer.run_train_epoch(model, train_idx, indices, results)
-        val_loss = trainer.run_validation_epoch(model, val_idx, indices, results)
+        train_loss = trainer.run_train_epoch(model, train_idx, data)
+        val_loss = trainer.run_validation_epoch(model, val_idx, data)
 
         marker = " *" if val_loss < best_val else ""
         if val_loss < best_val:
@@ -161,7 +196,7 @@ def train_nnue(model, indices, results, n_epochs=100, lr=1e-3, bs=16384):
 def export_weights(model, path="nnue.bin"):
     "Export NNUE weights to flat binary file for Rust inference"
     with open(path, "wb") as f:
-        for name in ["input_layer", "hidden_layer"]:
+        for name in ["acc_layer", "out_layer"]:
             layer = getattr(model, name)
             f.write(layer.weight.data.numpy().tobytes())
             f.write(layer.bias.data.numpy().tobytes())
@@ -169,10 +204,8 @@ def export_weights(model, path="nnue.bin"):
 
 if __name__ == "__main__":
     # precompute_sparse("lichess-big3-resolved.book", "nnue_data.npz")
-
-    indices, results = load_data("nnue_data.npz")
-
-    model = NNUE(input_size=768, hidden_size=256)
-    train_nnue(model, indices, results, n_epochs=1)
-
-    export_weights(model, "nnue.bin")
+    #torch.manual_seed(42)
+    data = load_data("nnue_data.npz")
+    model = NNUE(input_size=768, acc_size=128)
+    train_nnue(model, data, n_epochs=50, wd=1e-5)
+    export_weights(model, "nnue_foo.bin")

@@ -1,5 +1,7 @@
 use ratsu::{
-    nnue::Nnue, perft::{PerftCounts, perft}, position::Position
+    nnue::Nnue,
+    perft::{PerftCounts, perft},
+    position::Position,
 };
 
 struct PerftPosition {
