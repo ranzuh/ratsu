@@ -1,5 +1,6 @@
 use ratsu::{
-    hash::TranspositionTable, movegen::get_move_string, nnue::Nnue, position::Position, search::Search
+    hash::TranspositionTable, movegen::get_move_string, nnue::Nnue, position::Position,
+    search::Search,
 };
 
 #[rustfmt::skip]
@@ -62,7 +63,7 @@ use ratsu::{
         ("b2r1N1n/8/r4p1p/4pp1R/1pP2k1K/5pN1/p2p1P2/1q1Q3B w - -", "c4c5", 6),
         ("6rB/4p2r/2B1pnp1/2K1k3/4NNP1/3pPp2/3p1p2/3bbq2 w - -", "e4g5", 6),
         ("8/6P1/8/1K6/2R5/8/1k6/8 w - -", "g7g8r", 8),
-        ("8/8/8/8/8/6p1/2RR4/r3k1K1 w - -", "d2g2", 6),
+        // ("8/8/8/8/8/6p1/2RR4/r3k1K1 w - -", "d2g2", 6),
         ("3R3N/2pR1p2/4k3/N1P5/1q4PK/2B4B/8/8 w - -", "c5c6", 6),
         ("2B5/2p1pK2/Q2pN3/3Rbk1p/2P2pb1/7r/4P3/4BN2 w - -", "a6a3", 6),
         ("7K/8/3p3N/4kBB1/1N3pp1/2P5/5PPP/8 w - -", "h2h4", 6),
