@@ -1,3 +1,4 @@
+use crate::nnue::Nnue;
 use crate::piece::*;
 use crate::position::Position;
 
@@ -506,7 +507,7 @@ pub fn generate_pseudo_moves(position: &Position, only_tactical_moves: bool) -> 
     moves
 }
 
-pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
+pub fn generate_legal_moves(position: &mut Position, nnue: &Nnue) -> Vec<Move> {
     // TODO: Optimize move-lists
     // Currently creates new vectors in pseudo_moves and again in legal_moves
     // Maybe generate in pseudo moves and swap_remove in legal moves
@@ -514,7 +515,7 @@ pub fn generate_legal_moves(position: &mut Position) -> Vec<Move> {
     let pseudo_moves = generate_pseudo_moves(position, false);
     let mut legal_moves: Vec<Move> = Vec::with_capacity(100);
     for move_ in &pseudo_moves {
-        position.make_move(move_, 0); // make move
+        position.make_move(move_, 0, nnue); // make move
         position.is_white_turn = !position.is_white_turn; // consider from same side before move
         let idx = match position.is_white_turn {
             true => 0,

@@ -1,5 +1,5 @@
 use ratsu::{
-    hash::TranspositionTable, movegen::get_move_string, position::Position, search::Search,
+    hash::TranspositionTable, movegen::get_move_string, nnue::Nnue, position::Position, search::Search
 };
 
 #[rustfmt::skip]
@@ -79,13 +79,15 @@ use ratsu::{
 
 #[test]
 fn win_at_chess() {
+    const NNUE_BYTES: &[u8] = include_bytes!("../nnue/nnue.bin");
+    let nnue = Nnue::load(NNUE_BYTES);
     let mut tt = TranspositionTable::new(64);
     for (fen, exp_move, depth) in TACTICS {
         tt.clear();
-        let mut pos = Position::from_fen(fen);
+        let mut pos = Position::from_fen(fen, &nnue);
         println!("{}", fen);
         let movetime = 10000;
-        let (pv, _node_count) = Search::run(&mut pos, &mut tt, *depth, movetime, false);
+        let (pv, _node_count) = Search::run(&mut pos, &mut tt, *depth, movetime, false, &nnue);
         let best_move = pv.get(0).expect("pv should have moves");
         assert_eq!(get_move_string(&best_move), *exp_move);
     }

@@ -5,10 +5,10 @@ use std::{
 };
 
 use crate::{
-    evaluation::evaluate,
     hash::{NodeType, TranspositionTable},
     movegen::{Move, get_move_string, is_square_attacked},
     moveordering::{self},
+    nnue::{Nnue, nnue_evaluate},
     position::Position,
 };
 
@@ -84,6 +84,7 @@ pub struct Search<'a> {
     history: [[u32; 128]; 128],
     killers: [[Option<Move>; 2]; 64],
     use_pruning: bool,
+    nnue: &'a Nnue,
 }
 
 impl<'a> Search<'a> {
@@ -93,6 +94,7 @@ impl<'a> Search<'a> {
         depth: u32,
         movetime: u64,
         use_pruning: bool,
+        nnue: &'a Nnue,
     ) -> (Vec<Move>, u64) {
         tt.clear();
         let max_duration = Duration::from_millis(movetime);
@@ -105,6 +107,7 @@ impl<'a> Search<'a> {
             history: [[0u32; 128]; 128],
             killers: [[None; 2]; 64],
             use_pruning: use_pruning,
+            nnue,
         };
         search.search(depth)
     }
@@ -174,7 +177,7 @@ impl<'a> Search<'a> {
         if self.timer.should_stop(self.stats.node_count) {
             return 0;
         }
-        let stand_pat = evaluate(self.position);
+        let stand_pat = nnue_evaluate(self.position, self.nnue);
 
         if stand_pat >= beta {
             return beta; // fail hard beta-cutoff
@@ -188,7 +191,7 @@ impl<'a> Search<'a> {
         // Move ordering
         self.order_moves_inplace(&mut moves, ply, None);
         for move_ in moves {
-            self.position.make_move(&move_, ply);
+            self.position.make_move(&move_, ply, self.nnue);
 
             if !is_legal(self.position) {
                 self.position.unmake_move(&move_, ply);
@@ -272,7 +275,7 @@ impl<'a> Search<'a> {
         // Futility pruning condition
         let mut futility_prune = false;
         if self.use_pruning && depth <= 2 && !in_check && !pv_node {
-            let eval = evaluate(self.position);
+            let eval = nnue_evaluate(self.position, self.nnue);
             let margin = if depth == 1 { 100 } else { 300 };
             if eval + margin < alpha {
                 futility_prune = true;
@@ -286,7 +289,7 @@ impl<'a> Search<'a> {
         // Move ordering
         self.order_moves_inplace(&mut moves, ply, tt_move);
         for move_ in moves {
-            self.position.make_move(&move_, ply);
+            self.position.make_move(&move_, ply, self.nnue);
 
             if !is_legal(self.position) {
                 self.position.unmake_move(&move_, ply);

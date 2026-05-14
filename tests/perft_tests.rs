@@ -1,6 +1,5 @@
 use ratsu::{
-    perft::{PerftCounts, perft},
-    position::Position,
+    nnue::Nnue, perft::{PerftCounts, perft}, position::Position
 };
 
 struct PerftPosition {
@@ -233,6 +232,8 @@ const LONG_CASTLE_IMPOSSIBLE2: PerftPosition = PerftPosition {
 
 #[test]
 fn perft_suite() {
+    const NNUE_BYTES: &[u8] = include_bytes!("../nnue/nnue.bin");
+    let nnue = Nnue::load(NNUE_BYTES);
     let test_positions = [
         START_POSITION,
         KIWIPETE,
@@ -274,9 +275,9 @@ fn perft_suite() {
         LONG_CASTLE_IMPOSSIBLE2,
     ];
     for test_pos in test_positions {
-        let mut position = Position::from_fen(test_pos.fen_string);
+        let mut position = Position::from_fen(test_pos.fen_string, &nnue);
         let mut counts = PerftCounts::default();
-        let total_nodes = perft(test_pos.depth, &mut position, &mut counts, true);
+        let total_nodes = perft(test_pos.depth, &mut position, &mut counts, true, &nnue);
         println!();
         assert_eq!(total_nodes, test_pos.nodes, "{}", test_pos.fen_string)
     }
