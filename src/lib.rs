@@ -1,13 +1,14 @@
-pub mod bitboard;
-pub mod evaluation;
 pub mod hash;
 pub mod movegen;
 pub mod moveordering;
+pub mod nnue;
 pub mod perft;
 pub mod piece;
 pub mod position;
 pub mod search;
 pub mod uci;
+// pub mod bitboard;
+// pub mod evaluation;
 
 #[cfg(feature = "python")]
 pub mod tuner;

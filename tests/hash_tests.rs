@@ -1,7 +1,9 @@
-use ratsu::{START_POSITION_FEN, position::Position, uci::handle_position};
+use ratsu::{START_POSITION_FEN, nnue::Nnue, position::Position, uci::handle_position};
 
 #[test]
 fn test_incremental_hash_changes() {
+    const NNUE_BYTES: &[u8] = include_bytes!("../nnue/nnue.bin");
+    let nnue = Nnue::load(NNUE_BYTES);
     // Test cases: (starting FEN, moves, expected final FEN)
     let test_cases = [
         (
@@ -43,12 +45,12 @@ fn test_incremental_hash_changes() {
 
     for (start_fen, moves, expected_fen) in test_cases {
         // Build position incrementally by making moves
-        let mut incremental_pos = Position::from_fen(start_fen);
+        let mut incremental_pos = Position::from_fen(start_fen, &nnue);
         let position_command = format!("position fen {} moves {}", start_fen, moves);
-        handle_position(&position_command, &mut incremental_pos);
+        handle_position(&position_command, &mut incremental_pos, &nnue);
 
         // Build position directly from final FEN
-        let direct_pos = Position::from_fen(expected_fen);
+        let direct_pos = Position::from_fen(expected_fen, &nnue);
 
         // Verify that incremental hash matches direct hash
         assert_eq!(

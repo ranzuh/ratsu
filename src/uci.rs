@@ -6,6 +6,7 @@ use crate::{
     START_POSITION_FEN,
     hash::TranspositionTable,
     movegen::{Move, get_move_string},
+    nnue::Nnue,
     perft::run_perft,
     piece::{BISHOP, BLACK, KNIGHT, QUEEN, ROOK, WHITE},
     position::Position,
@@ -20,7 +21,7 @@ fn read_line() -> String {
     }
 }
 
-fn parse_move(move_string: &str, position: &mut Position) -> Move {
+fn parse_move(move_string: &str, position: &mut Position, nnue: &Nnue) -> Move {
     // e2e4 e7e5 g1f3 b8c6 f1b5 c2c1q
     let from_file = move_string.chars().next().unwrap() as usize;
     let from_rank = move_string.chars().nth(1).unwrap().to_digit(10).unwrap() as usize;
@@ -44,7 +45,7 @@ fn parse_move(move_string: &str, position: &mut Position) -> Move {
     let from_square = (from_file - 97) + ((8 - from_rank) * 16);
     let to_square = (to_file - 97) + ((8 - to_rank) * 16);
 
-    let moves = position.generate_legal_moves();
+    let moves = position.generate_legal_moves(nnue);
     for move_ in moves {
         if move_.from == from_square && move_.to == to_square && move_.promoted_piece == prom_piece
         {
@@ -57,16 +58,16 @@ fn parse_move(move_string: &str, position: &mut Position) -> Move {
     );
 }
 
-pub fn handle_position(input: &str, position: &mut Position) {
+pub fn handle_position(input: &str, position: &mut Position, nnue: &Nnue) {
     // > position startpos
     // > position startpos moves e2e4 e7e5 g1f3 b8c6 f1b5
     // > position fen 8/1B6/8/5p2/8/8/5Qrq/1K1R2bk w - - 0 1
     // > position fen 8/3P3k/n2K3p/2p3n1/1b4N1/2p1p1P1/8/3B4 w - - 0 1 moves g4f6 h7g7 f6h5 g7g6 d1c2
     if input.contains("fen") {
         let fen_part = input.strip_prefix("position fen ").unwrap();
-        *position = Position::from_fen(fen_part);
+        *position = Position::from_fen(fen_part, nnue);
     } else if input.contains("startpos") {
-        *position = Position::from_fen(START_POSITION_FEN);
+        *position = Position::from_fen(START_POSITION_FEN, nnue);
     }
     position.repetition_index += 1;
     position.repetition_stack[position.repetition_index] = position.hash;
@@ -74,8 +75,8 @@ pub fn handle_position(input: &str, position: &mut Position) {
         let index = input.find("moves").unwrap();
         let moves_part = &input[index + 6..];
         for move_string in moves_part.split(" ") {
-            let move_ = parse_move(move_string, position);
-            position.make_move(&move_, 0);
+            let move_ = parse_move(move_string, position, nnue);
+            position.make_move(&move_, 0, nnue);
             position.repetition_index += 1;
             position.repetition_stack[position.repetition_index] = position.hash;
         }
@@ -83,11 +84,11 @@ pub fn handle_position(input: &str, position: &mut Position) {
     }
 }
 
-fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) {
+fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable, nnue: &Nnue) {
     // default depth
     let mut depth: u32 = 64;
 
-    let mut base: u64 = 0;
+    let mut base: u64 = 1000000;
     let mut increment: u64 = 0;
 
     if input.contains("depth") {
@@ -133,7 +134,7 @@ fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) 
         "movetime is zero, check that time command is for correct side"
     );
 
-    let (pv, _node_count) = Search::run(position, tt, depth, movetime, true);
+    let (pv, _node_count) = Search::run(position, tt, depth, movetime, true, nnue);
     let best_move = pv.first().expect("pv should have moves");
     println!("bestmove {}", get_move_string(best_move));
 }
@@ -153,7 +154,10 @@ fn handle_go(input: &str, position: &mut Position, tt: &mut TranspositionTable) 
 // isready
 
 pub fn uci_loop() {
-    let mut position = Position::from_fen(START_POSITION_FEN);
+    const NNUE_BYTES: &[u8] = include_bytes!("../nnue/nnue.bin");
+    let nnue = Nnue::load(NNUE_BYTES);
+
+    let mut position = Position::from_fen(START_POSITION_FEN, &nnue);
     let mut tt = TranspositionTable::new(64);
 
     let version = env!("CARGO_PKG_VERSION");
@@ -167,21 +171,21 @@ pub fn uci_loop() {
         let input = read_line();
 
         if input.contains("position") {
-            handle_position(&input, &mut position);
+            handle_position(&input, &mut position, &nnue);
             position.print();
         } else if input.contains("quit") {
             break;
         } else if input.contains("ucinewgame") {
-            position = Position::from_fen(START_POSITION_FEN);
+            position = Position::from_fen(START_POSITION_FEN, &nnue);
             position.print();
         } else if input.contains("isready") {
             println!("readyok");
         } else if input.contains("go") {
-            handle_go(&input, &mut position, &mut tt);
+            handle_go(&input, &mut position, &mut tt, &nnue);
         } else if input.contains("perft") {
             // usage: perft 5
             let depth = input[6..].trim().parse::<u32>().unwrap();
-            run_perft(depth, &mut position);
+            run_perft(depth, &mut position, &nnue);
         } else if input.contains("stop") {
             println!("Handle stop")
             // stops calculating as soon as possible
