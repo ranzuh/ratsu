@@ -79,108 +79,92 @@ def precompute_sparse(data_path, out_path="nnue_data.npz", max_pieces=32):
 
 @dataclass
 class PositionData:
-    white_indices: torch.Tensor
-    black_indices: torch.Tensor
-    side_to_move: torch.Tensor
-    results: torch.Tensor
+    w_idx: torch.Tensor  # [N, max_pieces] int16
+    b_idx: torch.Tensor  # [N, max_pieces] int16
+    stm: torch.Tensor  # [N] bool
+    results: torch.Tensor  # [N] float32
 
+    @staticmethod
+    def load(path, device):
+        d = np.load(path)
+        pd = PositionData(
+            w_idx=torch.from_numpy(d["w_indices"]).to(device),
+            b_idx=torch.from_numpy(d["b_indices"]).to(device),
+            stm=torch.from_numpy(d["stm"]).to(device),
+            results=torch.from_numpy(d["results"]).to(device),
+        )
+        print(f"loaded {len(pd.results)} positions to {device}")
+        return pd
 
-def load_data(path="nnue_data.npz"):
-    data = np.load(path)
-    w_indices = torch.from_numpy(data["w_indices"].astype(np.int64))
-    b_indices = torch.from_numpy(data["b_indices"].astype(np.int64))
-    stm = torch.from_numpy(data["stm"])  # bool tensor
-    results = torch.from_numpy(data["results"])
-    print(f"loaded {len(results)} positions")
-    return PositionData(w_indices, b_indices, stm, results)
+    def _dense(self, indices):
+        bs, mp = indices.shape
+        x = torch.zeros(bs, 768, device=indices.device)
+        mask = indices >= 0
+        rows = (
+            torch.arange(bs, device=indices.device)
+            .unsqueeze(1)
+            .expand_as(indices)[mask]
+        )
+        x[rows, indices[mask].long()] = 1.0
+        return x
 
-
-def make_dense_batch(indices, device):
-    bs, mp = indices.shape
-    x = torch.zeros(bs, 768, device=device)
-    mask = indices >= 0
-    rows = torch.arange(bs, device=device).unsqueeze(1).expand_as(indices)[mask]
-    x[rows, indices[mask]] = 1.0
-    return x
-
-
-def get_xsy(idx, device):
-    w_x = make_dense_batch(data.white_indices[idx].to(device), device)
-    b_x = make_dense_batch(data.black_indices[idx].to(device), device)
-    s = data.side_to_move[idx].to(device)
-
-    y = data.results[idx].unsqueeze(1).to(device)
-    # Flip result for black STM: 0→1, 1→0, 0.5→0.5
-    y = torch.where(s.unsqueeze(1), y, 1.0 - y)
-
-    return w_x, b_x, s, y
-
-
-class Trainer:
-    def __init__(self, opt, sched, loss_fn, bs, device):
-        self.opt = opt
-        self.sched = sched
-        self.loss_fn = loss_fn
-        self.bs = bs
-        self.device = device
-
-    def run_train_epoch(self, model, train_idx, data: PositionData):
-        model.train()
-        shuffled = torch.randperm(len(train_idx))
-        total_loss, count = 0.0, 0
-        for i in range(0, len(train_idx), self.bs):
-            idx = train_idx[shuffled[i : i + self.bs]]
-            w_x, b_x, s, y = get_xsy(idx, self.device)
-            pred = model(w_x, b_x, s)
-            loss = self.loss_fn(pred, y)
-            self.opt.zero_grad()
-            loss.backward()
-            self.opt.step()
-            total_loss += loss.item() * len(idx)
-            count += len(idx)
-        self.sched.step()
-        return total_loss / count
-
-    def run_validation_epoch(self, model, val_idx, data: PositionData):
-        model.eval()
-        total_loss = 0.0
-        with torch.no_grad():
-            for i in range(0, len(val_idx), self.bs):
-                idx = val_idx[i : i + self.bs]
-                w_x, b_x, s, y = get_xsy(idx, self.device)
-                pred = model(w_x, b_x, s)
-                total_loss += self.loss_fn(pred, y).item() * len(idx)
-        return total_loss / len(val_idx)
+    def get_batch(self, idx):
+        w_x = self._dense(self.w_idx[idx])
+        b_x = self._dense(self.b_idx[idx])
+        s = self.stm[idx]
+        y = self.results[idx].unsqueeze(1)
+        y = torch.where(s.unsqueeze(1), y, 1.0 - y)
+        return w_x, b_x, s, y
 
 
 def train_nnue(model, data: PositionData, n_epochs=100, lr=1e-3, bs=16384, wd=1e-5):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = data.results.device
     model.to(device)
 
     # train/val split
     n = len(data.results)
     n_val = n // 10
-    perm = torch.randperm(n)
+    perm = torch.randperm(n, device=device)
     val_idx, train_idx = perm[:n_val], perm[n_val:]
 
     # setup trainer
     opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=n_epochs)
     loss_fn = nn.MSELoss()
-    trainer = Trainer(opt, sched, loss_fn, bs, device)
 
     # train for n_epochs
     best_val, best_state = float("inf"), None
     for epoch in range(n_epochs):
-        train_loss = trainer.run_train_epoch(model, train_idx, data)
-        val_loss = trainer.run_validation_epoch(model, val_idx, data)
+        # Train
+        model.train()
+        shuffled = torch.randperm(len(train_idx), device=device)
+        total_loss, count = 0.0, 0
+        for i in range(0, len(train_idx), bs):
+            w_x, b_x, s, y = data.get_batch(train_idx[shuffled[i : i + bs]])
+            loss = loss_fn(model(w_x, b_x, s), y)
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+            total_loss += loss.item() * len(y)
+            count += len(y)
+        sched.step()
 
-        marker = " *" if val_loss < best_val else ""
+        # Validate
+        model.eval()
+        val_loss = 0.0
+        with torch.no_grad():
+            for i in range(0, len(val_idx), bs):
+                w_x, b_x, s, y = data.get_batch(val_idx[i : i + bs])
+                val_loss += loss_fn(model(w_x, b_x, s), y).item() * len(y)
+        val_loss /= len(val_idx)
+
+        marker = ""
         if val_loss < best_val:
             best_val = val_loss
             best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+            marker = " *"
         print(
-            f"Epoch {epoch+1}/{n_epochs}  train: {train_loss:.6f}  val: {val_loss:.6f}{marker}"
+            f"Epoch {epoch+1}/{n_epochs}  train: {total_loss/count:.6f}  val: {val_loss:.6f}{marker}"
         )
 
     # save best weights
@@ -204,8 +188,9 @@ def export_weights(model, path="nnue.bin"):
 
 if __name__ == "__main__":
     # precompute_sparse("lichess-big3-resolved.book", "nnue_data.npz")
-    #torch.manual_seed(42)
-    data = load_data("nnue_data.npz")
-    model = NNUE(input_size=768, acc_size=128)
+    torch.manual_seed(42)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    data = PositionData.load("nnue_data.npz", device=device)
+    model = NNUE(input_size=768, acc_size=256)
     train_nnue(model, data, n_epochs=50, wd=1e-5)
     export_weights(model, "nnue_foo.bin")
