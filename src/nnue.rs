@@ -7,6 +7,7 @@ const INPUT_SIZE: usize = 768;
 pub const ACC_SIZE: usize = 128;
 const QA: i32 = 256;
 const QB: i32 = 64;
+const SCALE: f32 = 200.0;
 
 pub struct Nnue {
     pub acc_weights: [[i16; ACC_SIZE]; INPUT_SIZE],
@@ -55,7 +56,7 @@ impl Nnue {
                 nnue_bytes[offset + 2],
                 nnue_bytes[offset + 3],
             ]);
-            out_weights[i] = (f * QB as f32 * 200.0).round() as i16;
+            out_weights[i] = (f * QB as f32 * SCALE).round() as i16;
             offset += 4;
         }
 
@@ -65,7 +66,7 @@ impl Nnue {
             nnue_bytes[offset + 2],
             nnue_bytes[offset + 3],
         ]);
-        let out_bias = (out_bias_f * QA as f32 * QB as f32 * 200.0).round() as i32;
+        let out_bias = (out_bias_f * QA as f32 * QB as f32 * SCALE).round() as i32;
 
         Nnue {
             acc_weights,

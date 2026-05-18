@@ -191,6 +191,6 @@ if __name__ == "__main__":
     torch.manual_seed(42)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     data = PositionData.load("nnue_data.npz", device=device)
-    model = NNUE(input_size=768, acc_size=256)
-    train_nnue(model, data, n_epochs=50, wd=1e-5)
+    model = NNUE(input_size=768, acc_size=128)
+    train_nnue(model, data, n_epochs=50, lr=0.00799, wd=2.37735e-06)
     export_weights(model, "nnue_foo.bin")
