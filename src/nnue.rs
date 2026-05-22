@@ -16,6 +16,15 @@ pub struct Nnue {
     pub out_bias: i32,
 }
 
+fn next_float_from_bytes(bytes: &[u8], offset: usize) -> f32 {
+    f32::from_le_bytes([
+        bytes[offset],
+        bytes[offset + 1],
+        bytes[offset + 2],
+        bytes[offset + 3],
+    ])
+}
+
 impl Nnue {
     /// Load NNUE weights from a flat f32 binary file, quantizing to i16/i32 integers
     /// for fast inference. Weights are transposed for cache-friendly accumulator updates.
@@ -25,12 +34,7 @@ impl Nnue {
         let mut acc_weights = [[0i16; ACC_SIZE]; INPUT_SIZE];
         for i in 0..ACC_SIZE {
             for j in 0..INPUT_SIZE {
-                let f = f32::from_le_bytes([
-                    nnue_bytes[offset],
-                    nnue_bytes[offset + 1],
-                    nnue_bytes[offset + 2],
-                    nnue_bytes[offset + 3],
-                ]);
+                let f = next_float_from_bytes(nnue_bytes, offset);
                 acc_weights[j][i] = (f * QA as f32).round() as i16;
                 offset += 4;
             }
@@ -38,34 +42,19 @@ impl Nnue {
 
         let mut acc_bias = [0i16; ACC_SIZE];
         for i in 0..ACC_SIZE {
-            let f = f32::from_le_bytes([
-                nnue_bytes[offset],
-                nnue_bytes[offset + 1],
-                nnue_bytes[offset + 2],
-                nnue_bytes[offset + 3],
-            ]);
+            let f = next_float_from_bytes(nnue_bytes, offset);
             acc_bias[i] = (f * QA as f32).round() as i16;
             offset += 4;
         }
 
         let mut out_weights = [0i16; ACC_SIZE * 2];
         for i in 0..ACC_SIZE * 2 {
-            let f = f32::from_le_bytes([
-                nnue_bytes[offset],
-                nnue_bytes[offset + 1],
-                nnue_bytes[offset + 2],
-                nnue_bytes[offset + 3],
-            ]);
+            let f = next_float_from_bytes(nnue_bytes, offset);
             out_weights[i] = (f * QB as f32 * SCALE).round() as i16;
             offset += 4;
         }
 
-        let out_bias_f = f32::from_le_bytes([
-            nnue_bytes[offset],
-            nnue_bytes[offset + 1],
-            nnue_bytes[offset + 2],
-            nnue_bytes[offset + 3],
-        ]);
+        let out_bias_f = next_float_from_bytes(nnue_bytes, offset);
         let out_bias = (out_bias_f * QA as f32 * QB as f32 * SCALE).round() as i32;
 
         Nnue {
