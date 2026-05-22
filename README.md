@@ -9,7 +9,7 @@
 * 0x88 board representation and move generation
 * Iterative deepening negamax search
 * Quiescence search
-* Evaluation using Efficiently updated neural network (NNUE)
+* Evaluation using an NNUE (Efficiently Updatable Neural Network)
 * Transposition table with Zobrist hashing
 * Move ordering using TT move, MVV-LVA, Killer moves, and History heuristic
 * Check extension
