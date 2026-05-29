@@ -178,6 +178,7 @@ pub fn uci_loop() {
         } else if input.contains("ucinewgame") {
             position = Position::from_fen(START_POSITION_FEN, &nnue);
             position.print();
+            tt.clear();
         } else if input.contains("isready") {
             println!("readyok");
         } else if input.contains("go") {

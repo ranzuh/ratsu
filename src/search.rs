@@ -96,7 +96,6 @@ impl<'a> Search<'a> {
         use_pruning: bool,
         nnue: &'a Nnue,
     ) -> (Vec<Move>, u64) {
-        tt.clear();
         let max_duration = Duration::from_millis(movetime);
         let mut search = Self {
             position,
