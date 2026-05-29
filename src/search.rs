@@ -271,6 +271,15 @@ impl<'a> Search<'a> {
             tt_move = _tt_move;
         }
 
+        // Reverse futility prune
+        if self.use_pruning && !in_check && !pv_node {
+            let eval = nnue_evaluate(self.position, self.nnue);
+            let margin = 100 * depth as i32;
+            if eval >= beta + margin {
+                return eval;
+            }
+        }
+
         // Futility pruning condition
         let mut futility_prune = false;
         if self.use_pruning && depth <= 2 && !in_check && !pv_node {
