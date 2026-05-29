@@ -318,7 +318,8 @@ impl<'a> Search<'a> {
                 }
 
                 let mut reduction = 0;
-                if depth >= 3
+                if self.use_pruning
+                    && depth >= 3
                     && legal_moves > 4
                     && !in_check
                     && !pv_node
@@ -326,9 +327,10 @@ impl<'a> Search<'a> {
                     && !move_.promoted_piece.is_some()
                 {
                     reduction = 1;
-                    // if legal_moves > 6 {
-                    //     reduction = depth / 3;
-                    // }
+
+                    if (legal_moves >= 6 && depth >= 6) || (legal_moves >= 10 && depth >= 4) {
+                        reduction = 2;
+                    }
                 }
                 value = -self.alphabeta(
                     -alpha - 1,
