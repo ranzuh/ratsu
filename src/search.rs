@@ -252,7 +252,8 @@ impl<'a> Search<'a> {
             self.position.make_null();
 
             let mut line = Vec::new();
-            let value = -self.alphabeta(-beta, -beta + 1, depth - 3, ply + 1, &mut line, false);
+            let r = min(3 + depth / 3, depth);
+            let value = -self.alphabeta(-beta, -beta + 1, depth - r, ply + 1, &mut line, false);
             self.position.unmake_null(copy_ep);
 
             if value >= beta {
