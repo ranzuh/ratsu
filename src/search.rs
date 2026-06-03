@@ -82,7 +82,7 @@ pub struct Search<'a> {
     timer: Timer,
     prev_pv: Vec<Move>,
     history: [[u32; 128]; 128],
-    killers: [[Option<Move>; 2]; 64],
+    killers: [[Option<Move>; 2]; 128],
     use_pruning: bool,
     nnue: &'a Nnue,
 }
@@ -104,7 +104,7 @@ impl<'a> Search<'a> {
             timer: Timer::new(max_duration),
             prev_pv: Vec::new(),
             history: [[0u32; 128]; 128],
-            killers: [[None; 2]; 64],
+            killers: [[None; 2]; 128],
             use_pruning: use_pruning,
             nnue,
         };
@@ -219,6 +219,10 @@ impl<'a> Search<'a> {
         pv_node: bool,
     ) -> i32 {
         self.stats.node_count += 1;
+
+        if ply >= 100 {
+            return nnue_evaluate(self.position, self.nnue);
+        }
 
         if ply > 0 && self.timer.should_stop(self.stats.node_count) {
             return 0;

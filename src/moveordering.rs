@@ -16,7 +16,7 @@ pub fn order_moves_inplace(
     moves: &mut [Move],
     ply: u32,
     tt_move: Option<&Move>,
-    killers: &[[Option<Move>; 2]; 64],
+    killers: &[[Option<Move>; 2]; 128],
     history: &[[u32; 128]; 128],
 ) {
     moves.sort_by_cached_key(|&move_| {
