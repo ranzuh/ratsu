@@ -1,4 +1,8 @@
-use crate::{movegen::Move, piece::get_piece_type, position::Position};
+use crate::{
+    movegen::Move,
+    piece::get_piece_type,
+    position::{MAX_PLY, Position},
+};
 
 #[rustfmt::skip]
 pub const MVV_LVA: [[u8; 7]; 7] = [
@@ -16,7 +20,7 @@ pub fn order_moves_inplace(
     moves: &mut [Move],
     ply: u32,
     tt_move: Option<&Move>,
-    killers: &[[Option<Move>; 2]; 64],
+    killers: &[[Option<Move>; 2]; MAX_PLY],
     history: &[[u32; 128]; 128],
 ) {
     moves.sort_by_cached_key(|&move_| {

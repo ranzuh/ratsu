@@ -24,6 +24,8 @@ pub fn get_phase_value(piece: u8) -> i32 {
     }
 }
 
+pub const MAX_PLY: usize = 100;
+
 #[derive(Clone)]
 pub struct Position {
     pub board: [u8; 128],
@@ -40,14 +42,14 @@ pub struct Position {
     pub acc_white: [i16; ACC_SIZE],
     pub acc_black: [i16; ACC_SIZE],
 
-    prev_target_piece: [u8; 64],
-    prev_castling_rights: [[bool; 4]; 64],
-    prev_king_squares: [[usize; 2]; 64],
-    prev_ep_square: [Option<usize>; 64],
-    prev_hash: [u64; 64],
-    prev_fifty: [u8; 64],
-    prev_acc_white: [[i16; ACC_SIZE]; 64],
-    prev_acc_black: [[i16; ACC_SIZE]; 64],
+    prev_target_piece: [u8; MAX_PLY],
+    prev_castling_rights: [[bool; 4]; MAX_PLY],
+    prev_king_squares: [[usize; 2]; MAX_PLY],
+    prev_ep_square: [Option<usize>; MAX_PLY],
+    prev_hash: [u64; MAX_PLY],
+    prev_fifty: [u8; MAX_PLY],
+    prev_acc_white: [[i16; ACC_SIZE]; MAX_PLY],
+    prev_acc_black: [[i16; ACC_SIZE]; MAX_PLY],
 }
 
 impl Position {
@@ -146,14 +148,14 @@ impl Position {
             acc_white: [0i16; ACC_SIZE],
             acc_black: [0i16; ACC_SIZE],
 
-            prev_target_piece: [0u8; 64],
-            prev_castling_rights: [[false, false, false, false]; 64],
-            prev_king_squares: [[127, 127]; 64],
-            prev_ep_square: [None; 64],
-            prev_hash: [0u64; 64],
-            prev_fifty: [0u8; 64],
-            prev_acc_white: [[0i16; ACC_SIZE]; 64],
-            prev_acc_black: [[0i16; ACC_SIZE]; 64],
+            prev_target_piece: [0u8; MAX_PLY],
+            prev_castling_rights: [[false, false, false, false]; MAX_PLY],
+            prev_king_squares: [[127, 127]; MAX_PLY],
+            prev_ep_square: [None; MAX_PLY],
+            prev_hash: [0u64; MAX_PLY],
+            prev_fifty: [0u8; MAX_PLY],
+            prev_acc_white: [[0i16; ACC_SIZE]; MAX_PLY],
+            prev_acc_black: [[0i16; ACC_SIZE]; MAX_PLY],
         };
 
         let fen_parts = fen_string.split(" ").collect::<Vec<&str>>();
