@@ -165,6 +165,8 @@ pub fn uci_loop() {
 
     println!("id name {name} {version}");
     println!("id author Eetu Rantala");
+    println!("option name Threads type spin default 1 min 1 max 1");
+    println!("option name Hash type spin default 64 min 64 max 64");
     println!("uciok");
 
     loop {
