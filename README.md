@@ -18,6 +18,7 @@
 * Late move reductions
 * Aspiration windows
 * Futility pruning
+* Reverse futility pruning (Static null move pruning)
 * Detect repetitions and fifty-move rule
 * Basic UCI support
 
