@@ -4,6 +4,22 @@
   <p>Chess engine written in Rust</p>
 </div>
 
+## Ratings
+
+| Version     | Estimated Rating (Elo) | CCRL Blitz Rating (Elo) | CCRL 40/15 Rating (ELo)          |
+| ----------- | -----------------------|-------------------------|----------------------------------|
+| 0.9.0       | 1800-1900              | 1742                    | -                                |
+| 1.0.0       | -                      | -                       | -                                |
+| 1.1.0       | 2023                   | 2021                    | -                                |
+| 1.2.0       | 2250                   | -                       | -                                |
+| 2.0.0*      | 2643                   | 2658                    | 2726                             |
+| 2.1.0       | 2833                   | -                       | -                                |
+
+* [CCRL Blitz Ratings list](https://computerchess.org.uk/404/)
+* [CCRL 40/15 Ratings list](https://computerchess.org.uk/4040/)
+
+\* NNUE evaluation was introduced in version 2.0.0 - previous versions used hand crafted evaluation.
+
 ## Features
 
 * 0x88 board representation and move generation
