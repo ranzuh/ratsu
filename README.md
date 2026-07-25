@@ -13,7 +13,7 @@
 | 1.1.0       | 2023                   | 2022                    | -                                |
 | 1.2.0       | 2250                   | -                       | -                                |
 | 2.0.0*      | 2643                   | 2702                    | 2729                             |
-| 2.1.0       | 2833                   | -                       | 2851                             |
+| 2.1.0       | 2833                   | 2882                    | 2851                             |
 
 * [CCRL Blitz Ratings list](https://computerchess.org.uk/404/)
 * [CCRL 40/15 Ratings list](https://computerchess.org.uk/4040/)
