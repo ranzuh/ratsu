@@ -66,8 +66,19 @@ def precompute_sparse(data_path: str, out_path: str) -> None:
         if i % 100000 == 0:
             print(f"Parsing data {i}/{len(lines)}")
 
-        fen, result = line.rsplit(" [", 1)
-        results[i] = float(result.rstrip("]"))
+        # fen, result = line.rsplit(" [", 1)
+        # results[i] = float(result.rstrip("]"))
+        
+        fen, result, score = line.rsplit(" ", 2)
+        result = float(result.strip("[]"))
+        score = float(score.strip("[]"))
+
+        score_prob = 1.0 / (1.0 + np.exp(-score / 410.0))
+
+        blended_score = 0.8 * score_prob + (1.0 - 0.8) * result
+
+        results[i] = blended_score
+        
         w_feats, b_feats, is_white = fen_to_features(fen)
         w_indices[i, : len(w_feats)] = w_feats
         b_indices[i, : len(b_feats)] = b_feats
@@ -205,10 +216,10 @@ def export_weights(model: NNUE, path: str) -> None:
 
 
 if __name__ == "__main__":
-    # precompute_sparse("lichess-big3-resolved.book", "nnue_data.npz")
+    precompute_sparse("data-d6.txt", "nnue_data.npz")
     torch.manual_seed(42)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     data = PositionData.load("nnue_data.npz", device=device)
     model = NNUE(input_size=768, acc_size=128)
-    train_nnue(model, data, n_epochs=50, lr=0.00799, wd=2.37735e-06)
-    export_weights(model, "nnue.bin")
+    train_nnue(model, data, n_epochs=100, lr=0.00799, wd=2.37735e-06)
+    export_weights(model, "nnue-d6.bin")

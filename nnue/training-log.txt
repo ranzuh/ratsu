@@ -1,0 +1,47 @@
+Results of ratsu-210 vs ratsu-d6 (8+0.08, NULL, NULL, 8moves_v3.pgn):
+Elo: 31.35 +/- 20.40, nElo: 39.82 +/- 25.74
+LOS: 99.88 %, DrawRatio: 36.86 %, PairsRatio: 1.33
+Games: 700, Wins: 255, Losses: 192, Draws: 253, Points: 381.5 (54.50 %)
+Ptnml(0-2): [21, 74, 129, 73, 53], WL/DD Ratio: 1.43
+LLR: 2.02 (68.5%) (-2.94, 2.94) [0.00, 10.00]
+
+
+Epoch 49/50  train: 0.006748  val: 0.006872 *
+Epoch 50/50  train: 0.006739  val: 0.006869 *
+Best val loss: 0.006869, best weights saved to: nnue_best.pt
+
+Epoch 97/100  train: 0.006778  val: 0.006884 *
+Epoch 98/100  train: 0.006772  val: 0.006883 *
+Epoch 99/100  train: 0.006768  val: 0.006882 *
+Epoch 100/100  train: 0.006765  val: 0.006881 *
+Best val loss: 0.006881, best weights saved to: nnue_best.pt
+
+
+./fastchess \
+    -engine cmd=./engines/ratsu-210 name=ratsu-210 \
+    -engine cmd=./engines/ratsu-d6 name=ratsu-d6 \
+    -openings file=./openings/noob_4moves.epd format=epd order=random \
+    -each tc=8+0.08 \
+    -sprt elo0=0 elo1=10 alpha=0.05 beta=0.05 \
+    -rounds 2000 -concurrency 12 -ratinginterval 5
+
+
+./fastchess \                                                                     
+    -engine cmd=./engines/ratsu-210 name=ratsu-210-1 \
+    -engine cmd=./engines/ratsu-210 name=ratsu-210-2 \
+    -openings file=./openings/noob_4moves.epd format=epd order=random \
+    -each depth=6 \
+    -rounds 20000 -concurrency 12 \
+    -pgnout file=./games-d6-10.pgn \
+    -resign movecount=3 score=600 -draw movenumber=40 movecount=8 score=10
+
+
+python extract.py
+
+python train.py 
+
+cargo build -r; mv ../target/release/ratsu ../../../enginetesting/engines/ratsu-d6
+
+wc -l data-d6.txt
+
+cat data-d6-more-more5.txt >> data-d6.txt
