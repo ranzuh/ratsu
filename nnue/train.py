@@ -66,8 +66,19 @@ def precompute_sparse(data_path: str, out_path: str) -> None:
         if i % 100000 == 0:
             print(f"Parsing data {i}/{len(lines)}")
 
-        fen, result = line.rsplit(" [", 1)
-        results[i] = float(result.rstrip("]"))
+        # fen, result = line.rsplit(" [", 1)
+        # results[i] = float(result.rstrip("]"))
+        
+        fen, result, score = line.rsplit(" ", 2)
+        result = float(result.strip("[]"))
+        score = float(score.strip("[]"))
+
+        score_prob = 1.0 / (1.0 + np.exp(-score / 410.0))
+
+        blended_score = 0.8 * score_prob + (1.0 - 0.8) * result
+
+        results[i] = blended_score
+        
         w_feats, b_feats, is_white = fen_to_features(fen)
         w_indices[i, : len(w_feats)] = w_feats
         b_indices[i, : len(b_feats)] = b_feats
@@ -127,23 +138,28 @@ class PositionData:
 
 def train_nnue(
     model: NNUE,
-    data: PositionData,
-    n_epochs: int = 100,
-    lr: float = 1e-3,
+    train_data: PositionData,
+    val_data: PositionData,
+    n_epochs: int,
+    lr: float,
+    wd: float,
     bs: int = 16384,
-    wd: float = 1e-5,
 ) -> NNUE:
-    device = data.results.device
+    device = train_data.results.device
     model.to(device)
 
     # train/val split
-    n = len(data.results)
-    n_val = n // 10
-    perm = torch.randperm(n, device=device)
-    val_idx, train_idx = perm[:n_val], perm[n_val:]
+    # n = len(data.results)
+    # n_val = n // 10
+    n_train = len(train_data.results)
+    train_idx = torch.randperm(n_train, device=device)
+
+    n_val = len(val_data.results)
+    val_idx = torch.randperm(n_val, device=device)
+    # val_idx, train_idx = perm[:n_val], perm[n_val:]
 
     # setup trainer
-    opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
+    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=wd)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=n_epochs)
     loss_fn = nn.MSELoss()
 
@@ -157,7 +173,7 @@ def train_nnue(
         train_loss = 0.0
         for i in range(0, len(train_idx), bs):
             batch_indices = train_idx[shuffled[i : i + bs]]
-            w_x, b_x, s, y = data.get_batch(batch_indices)
+            w_x, b_x, s, y = train_data.get_batch(batch_indices)
             loss = loss_fn(model(w_x, b_x, s), y)
             opt.zero_grad()
             loss.backward()
@@ -172,7 +188,7 @@ def train_nnue(
         with torch.no_grad():
             for i in range(0, len(val_idx), bs):
                 batch_indices = val_idx[i : i + bs]
-                w_x, b_x, s, y = data.get_batch(batch_indices)
+                w_x, b_x, s, y = val_data.get_batch(batch_indices)
                 val_loss += loss_fn(model(w_x, b_x, s), y).item() * len(y)
         val_loss /= len(val_idx)
 
@@ -205,10 +221,12 @@ def export_weights(model: NNUE, path: str) -> None:
 
 
 if __name__ == "__main__":
-    # precompute_sparse("lichess-big3-resolved.book", "nnue_data.npz")
+    #precompute_sparse("data-d6.txt", "nnue_data.npz")
+    #precompute_sparse("data-d8.txt", "nnue_data_val.npz")
     torch.manual_seed(42)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    data = PositionData.load("nnue_data.npz", device=device)
+    train_data = PositionData.load("nnue_data.npz", device=device)
+    val_data = PositionData.load("nnue_data_val.npz", device=device)
     model = NNUE(input_size=768, acc_size=128)
-    train_nnue(model, data, n_epochs=50, lr=0.00799, wd=2.37735e-06)
-    export_weights(model, "nnue.bin")
+    train_nnue(model, train_data, val_data, n_epochs=20, lr=0.008, wd=0.05)
+    #export_weights(model, "nnue-d6-W.bin")
